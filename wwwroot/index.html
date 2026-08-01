@@ -155,9 +155,9 @@
           <div class="relative flex items-center justify-between">
             <div>
               <p class="font-mono text-[9px] font-bold uppercase tracking-[.22em] text-amber-300/65">Perimeter radar</p>
-              <p class="mt-1 font-mono text-[9px] text-stone-700">LIVE / GLOBAL / EDGE-01</p>
+              <p class="mt-1 font-mono text-[9px] text-stone-700">Live view · updates automatically</p>
             </div>
-            <span id="radar-status" class="font-mono text-[9px] font-bold text-emerald-300">SCANNING</span>
+            <span id="radar-status" class="font-mono text-[9px] font-bold text-emerald-300">SCANNING · NO ACTION NEEDED</span>
           </div>
 
           <div class="relative mx-auto mt-6 aspect-square w-full max-w-[21rem]">
@@ -192,9 +192,12 @@
 
         <article class="corner-cut overflow-hidden border border-amber-200/15 bg-[#0b0c08]/90 shadow-[0_25px_90px_rgba(0,0,0,.4)]">
           <div class="flex flex-wrap items-center justify-between gap-4 border-b border-amber-200/10 bg-black/20 px-5 py-4 sm:px-6">
-            <div class="flex items-center gap-3">
-              <span class="font-mono text-[10px] font-black uppercase tracking-[.22em] text-amber-300">Evidence ledger</span>
-              <span id="ledger-count" class="border border-stone-800 px-2 py-1 font-mono text-[8px] text-stone-600">0 EVENTS</span>
+            <div>
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-[10px] font-black uppercase tracking-[.22em] text-amber-300">Evidence ledger</span>
+                <span id="ledger-count" class="border border-stone-800 px-2 py-1 font-mono text-[8px] text-stone-600">0 EVENTS</span>
+              </div>
+              <p class="mt-1.5 font-mono text-[8px] text-stone-700">Click any incident row to see exactly what happened</p>
             </div>
             <button
               id="reset-button"
@@ -219,17 +222,47 @@
                 <div>
                   <p class="font-mono text-[9px] font-black uppercase tracking-[.2em] text-emerald-300">New threat contained</p>
                   <p id="latest-alert-summary" class="mt-1 font-mono text-[10px] text-emerald-200/60">Waiting for event</p>
+                  <p class="mt-1 font-mono text-[8px] text-emerald-300/35">Click its incident row below for the full explanation</p>
                 </div>
               </div>
               <span id="latest-alert-time" class="font-mono text-[9px] text-emerald-300/45"></span>
             </div>
           </div>
 
+          <div id="incident-inspector" tabindex="-1" aria-live="polite" class="hidden border-b border-amber-300/20 bg-amber-300/[.035] px-5 py-5 outline-none sm:px-6">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p id="inspector-case-label" class="font-mono text-[8px] font-bold uppercase tracking-[.2em] text-amber-300/60">Selected incident</p>
+                <h2 id="inspector-title" class="mt-2 text-base font-bold text-stone-100">Choose an incident below</h2>
+                <p id="inspector-request" class="mt-1.5 font-mono text-[9px] text-stone-600"></p>
+              </div>
+              <button id="close-inspector-button" type="button" class="flex items-center gap-1.5 border border-stone-800 px-2.5 py-2 font-mono text-[8px] font-bold uppercase tracking-[.12em] text-stone-600 hover:border-amber-300/30 hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300">
+                Close
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div class="mt-5 grid gap-3 sm:grid-cols-3">
+              <div class="border-l-2 border-amber-300/40 pl-3">
+                <p class="font-mono text-[8px] font-bold uppercase tracking-[.14em] text-amber-300">1 · Trap touched</p>
+                <p class="mt-1 text-[10px] leading-4 text-stone-600">The IP requested a hidden decoy route.</p>
+              </div>
+              <div class="border-l-2 border-red-400/40 pl-3">
+                <p class="font-mono text-[8px] font-bold uppercase tracking-[.14em] text-red-400">2 · IP banned</p>
+                <p class="mt-1 text-[10px] leading-4 text-stone-600">HoneyGuard flagged the source immediately.</p>
+              </div>
+              <div class="border-l-2 border-emerald-400/40 pl-3">
+                <p class="font-mono text-[8px] font-bold uppercase tracking-[.14em] text-emerald-300">3 · API protected</p>
+                <p class="mt-1 text-[10px] leading-4 text-stone-600">Future requests from that IP receive 403.</p>
+              </div>
+            </div>
+            <p id="inspector-outcome" class="mt-4 border-t border-amber-200/10 pt-3 font-mono text-[9px] leading-5 text-stone-500"></p>
+          </div>
+
           <div class="hidden grid-cols-[3.2rem_8rem_1fr_6rem] gap-4 border-b border-amber-200/5 px-6 py-3 font-mono text-[8px] font-bold uppercase tracking-[.18em] text-stone-800 sm:grid">
             <span>Case</span>
             <span>Source</span>
             <span>Evidence</span>
-            <span class="text-right">Time</span>
+            <span class="text-right">Open</span>
           </div>
 
           <ul id="incident-list" class="max-h-[34rem] divide-y divide-amber-200/5 overflow-y-auto">
@@ -308,11 +341,18 @@
     const latestAlertElement = document.getElementById('latest-alert')
     const latestAlertSummaryElement = document.getElementById('latest-alert-summary')
     const latestAlertTimeElement = document.getElementById('latest-alert-time')
+    const incidentInspectorElement = document.getElementById('incident-inspector')
+    const inspectorCaseLabelElement = document.getElementById('inspector-case-label')
+    const inspectorTitleElement = document.getElementById('inspector-title')
+    const inspectorRequestElement = document.getElementById('inspector-request')
+    const inspectorOutcomeElement = document.getElementById('inspector-outcome')
+    const closeInspectorButtonElement = document.getElementById('close-inspector-button')
 
     const seenIncidentIds = new Set()
     const attackerIpAddresses = new Set()
     let totalAttackCount = 0
     let lastSeenTimestamp = null
+    let selectedIncidentButtonElement
 
     const formatTimestamp = (isoString) => new Date(isoString).toLocaleTimeString('en-GB', {
       hour: '2-digit',
@@ -333,13 +373,13 @@
           pill: 'hidden items-center gap-2 border border-stone-800 bg-black/20 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-stone-600 sm:flex',
           dot: 'h-1.5 w-1.5 rounded-full bg-stone-600',
           label: 'Connecting',
-          radar: 'SCANNING',
+          radar: 'SCANNING · NO ACTION NEEDED',
         },
         connected: {
           pill: 'hidden items-center gap-2 border border-emerald-400/20 bg-emerald-400/5 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-emerald-300 sm:flex',
           dot: 'h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.8)]',
           label: 'Realtime live',
-          radar: 'SCANNING',
+          radar: 'SCANNING · NO ACTION NEEDED',
         },
         disconnected: {
           pill: 'hidden items-center gap-2 border border-red-400/20 bg-red-400/5 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-red-300 sm:flex',
@@ -398,6 +438,31 @@
       }
     }
 
+    const showIncidentDetails = (incident, caseNumber, buttonElement) => {
+      if (selectedIncidentButtonElement) {
+        selectedIncidentButtonElement.setAttribute('aria-pressed', 'false')
+      }
+      selectedIncidentButtonElement = buttonElement
+      selectedIncidentButtonElement.setAttribute('aria-pressed', 'true')
+
+      inspectorCaseLabelElement.textContent = `Selected case #${caseNumber}`
+      inspectorTitleElement.textContent = `${incident.ip_address} touched ${incident.path}`
+      inspectorRequestElement.textContent = `${incident.method} ${incident.path} · detected at ${formatTimestamp(incident.created_at)}`
+      inspectorOutcomeElement.textContent = `HoneyGuard returned a decoy 404, banned ${incident.ip_address}, and will stop its next request with 403 before the protected API is reached.`
+      incidentInspectorElement.classList.remove('hidden')
+      incidentInspectorElement.focus({ preventScroll: true })
+      incidentInspectorElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+
+    const hideIncidentDetails = () => {
+      incidentInspectorElement.classList.add('hidden')
+      if (selectedIncidentButtonElement) {
+        selectedIncidentButtonElement.setAttribute('aria-pressed', 'false')
+        selectedIncidentButtonElement.focus()
+      }
+      selectedIncidentButtonElement = undefined
+    }
+
     const renderIncidentRow = (incident, { animate }) => {
       if (seenIncidentIds.has(incident.id)) return
       seenIncidentIds.add(incident.id)
@@ -414,8 +479,15 @@
 
       const rowElement = createElement(
         'li',
-        `grid gap-2 px-5 py-4 transition hover:bg-amber-300/[.025] sm:grid-cols-[3.2rem_8rem_1fr_6rem] sm:items-center sm:gap-4 sm:px-6 ${animate ? 'row-in' : ''}`,
+        animate ? 'row-in' : '',
       )
+      const rowButtonElement = createElement(
+        'button',
+        'group grid w-full cursor-pointer gap-2 px-5 py-4 text-left transition hover:bg-amber-300/[.035] focus:bg-amber-300/[.035] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-300 aria-pressed:bg-amber-300/[.05] sm:grid-cols-[3.2rem_8rem_1fr_6rem] sm:items-center sm:gap-4 sm:px-6',
+      )
+      rowButtonElement.type = 'button'
+      rowButtonElement.setAttribute('aria-pressed', 'false')
+      rowButtonElement.setAttribute('aria-label', `Inspect ${incident.ip_address} attack on ${incident.path}`)
 
       const caseNumber = String(totalAttackCount).padStart(3, '0')
       const caseElement = createElement('span', 'font-mono text-[9px] font-bold text-stone-700', `#${caseNumber}`)
@@ -433,10 +505,15 @@
       const detailElement = createElement('p', 'mt-1 font-mono text-[8px] text-stone-700', `${incident.method} · hidden route triggered · IP banned`)
       evidenceContainerElement.append(evidenceLineElement, detailElement)
 
-      const timeElement = createElement('time', 'font-mono text-[9px] text-stone-700 sm:text-right', formatTimestamp(incident.created_at))
+      const actionContainerElement = createElement('div', 'sm:text-right')
+      const timeElement = createElement('time', 'block font-mono text-[9px] text-stone-700', formatTimestamp(incident.created_at))
       timeElement.dateTime = incident.created_at
+      const actionElement = createElement('span', 'mt-1 block font-mono text-[8px] font-bold uppercase tracking-[.1em] text-amber-300/45 transition group-hover:text-amber-300', 'View details →')
+      actionContainerElement.append(timeElement, actionElement)
 
-      rowElement.append(caseElement, sourceContainerElement, evidenceContainerElement, timeElement)
+      rowButtonElement.append(caseElement, sourceContainerElement, evidenceContainerElement, actionContainerElement)
+      rowButtonElement.addEventListener('click', () => showIncidentDetails(incident, caseNumber, rowButtonElement))
+      rowElement.append(rowButtonElement)
       incidentListElement.prepend(rowElement)
       updateMetrics()
     }
@@ -493,6 +570,7 @@
     }
 
     resetButtonElement.addEventListener('click', handleResetBans)
+    closeInspectorButtonElement.addEventListener('click', hideIncidentDetails)
     startDefenseCenter()
   </script>
 </body>
