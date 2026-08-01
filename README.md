@@ -9,8 +9,10 @@ dashboard.
 - Defender dashboard: https://cursor-cybersecurity-hack-august-2026-production.up.railway.app/
 - Attack simulator: https://cursor-cybersecurity-hack-august-2026-production.up.railway.app/attack.html
 
-Open both side by side. On the attack simulator, click **Run attack demo** and watch the
-incident land on the dashboard as it happens. Click **Run demo again** to replay.
+Open both side by side. In the Threat Theater, choose an attacker IP and click **Start
+3-step attack**. The cinematic stepper shows the normal request, decoy hit, and automatic
+block while the incident lands on the Defense Center. You can also send an exact HTTP
+method and API path from the operator console.
 
 ## What happens
 
@@ -44,17 +46,22 @@ simulation from a terminal:
 ```
 
 or open [http://localhost:5245/attack.html](http://localhost:5245/attack.html) in another
-tab and click **Run attack demo** — no terminal needed. See
+tab and click **Start 3-step attack** — no terminal needed. See
 [Attack it from the browser](#attack-it-from-the-browser) below for how that page works.
 
-Click **Run demo again** on the dashboard to clear bans and replay.
+Click **Clear active bans** on either page to replay with the same attacker IP.
 
 ## Attack it from the browser
 
-`wwwroot/attack.html` is a self-service "attack simulator" so the whole demo — normal
-request, trap probe, ban, block — can be run end-to-end from two browser tabs, with no
-terminal required. Clicking **Run attack demo** rolls a fresh simulated attacker identity
-and walks through all three steps automatically, so replaying it is always one click.
+`wwwroot/attack.html` is a self-service Threat Theater, so the whole demo — normal request,
+trap probe, ban, block — can be run end-to-end from two browser tabs with no terminal.
+Choose a simulated IPv4 address manually or generate one with a click, then use **Start
+3-step attack** for the guided visual story.
+
+The operator console also accepts an exact HTTP method and same-origin API path. Send
+requests manually, or use the one-click presets for a normal endpoint and common hidden
+traps. The response status and body stay visible so it is easy to explore how the ban
+affects subsequent requests.
 
 A browser cannot set the `X-Forwarded-For` header itself (`fetch` treats it as forbidden),
 which is what `demo/attack.sh` relies on to simulate a public attacker IP. Instead, the
@@ -67,13 +74,6 @@ itself.
 Open the dashboard and the attack simulator side by side to watch incidents land in real
 time as you probe.
 
-## Light and dark mode
-
-Both `wwwroot/index.html` and `wwwroot/attack.html` support light and dark themes via a
-toggle in the top bar. The choice is stored in `localStorage` and applied before the page
-paints (`wwwroot/theme.js`), so there is no flash of the wrong theme on load. With no
-stored preference, the page follows the browser's `prefers-color-scheme`.
-
 ## Deploy to Railway
 
 The repo includes a `Dockerfile`, so Railway can build and deploy it directly:
@@ -82,7 +82,7 @@ The repo includes a `Dockerfile`, so Railway can build and deploy it directly:
    and builds it automatically — no other configuration is required.
 2. Set these service variables:
    - `HoneyGuard__SupabaseServiceRoleKey` — the Supabase `service_role` key (secret, never commit this)
-   - `HoneyGuard__DemoMode` = `true` — lets `/attack.html` simulate attacker IPs, and lets **Run demo again** work outside Development
+   - `HoneyGuard__DemoMode` = `true` — lets `/attack.html` simulate attacker IPs, and lets **Clear active bans** work outside Development
    - `HoneyGuard__TrustForwardedForHeader` = `true` — trusts Railway's edge proxy to set `X-Forwarded-For` honestly
    - `HoneyGuard__BanDuration` = `00:02:00` (optional) — shorter bans make repeat demos faster
    - `ASPNETCORE_ENVIRONMENT` = `Production`
@@ -105,7 +105,6 @@ Two things to know about running this in a hosted demo:
 - `Reporting/IncidentDispatcher.cs` — sends incidents to Supabase in the background
 - `wwwroot/index.html` — defender dashboard, displays incidents through Supabase Realtime
 - `wwwroot/attack.html` — self-service attack simulator for the browser
-- `wwwroot/theme.js` — shared light/dark theme toggle for both pages
 - `demo/attack.sh` — runs the three-request demo from a terminal
 - `Dockerfile` — builds the app for deployment (e.g. Railway)
 

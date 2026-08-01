@@ -3,112 +3,290 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HoneyGuard — Defender dashboard</title>
-  <!-- Render-blocking and loaded before Tailwind so the .dark class lands on <html>
-       before first paint - avoids a flash of the wrong theme. -->
-  <script src="/theme.js"></script>
+  <meta name="theme-color" content="#080906" />
+  <title>HoneyGuard — Defense Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <link rel="icon" href="data:," />
   <style type="text/tailwindcss">
-    /* Tailwind v4's `dark:` variant follows prefers-color-scheme by default. This
-       redefines it to key off a `.dark` class on <html> instead, so theme.js can
-       toggle it manually and persist the choice. */
-    @custom-variant dark (&:where(.dark, .dark *));
+    @theme {
+      --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
   </style>
   <style>
-    @keyframes rowIn {
-      from { opacity: 0; transform: translateY(-6px); }
-      to { opacity: 1; transform: translateY(0); }
+    .honey-grid {
+      background-image:
+        linear-gradient(30deg, rgba(245, 184, 66, .035) 12%, transparent 12.5%, transparent 87%, rgba(245, 184, 66, .035) 87.5%, rgba(245, 184, 66, .035)),
+        linear-gradient(150deg, rgba(245, 184, 66, .035) 12%, transparent 12.5%, transparent 87%, rgba(245, 184, 66, .035) 87.5%, rgba(245, 184, 66, .035)),
+        linear-gradient(30deg, rgba(245, 184, 66, .035) 12%, transparent 12.5%, transparent 87%, rgba(245, 184, 66, .035) 87.5%, rgba(245, 184, 66, .035)),
+        linear-gradient(150deg, rgba(245, 184, 66, .035) 12%, transparent 12.5%, transparent 87%, rgba(245, 184, 66, .035) 87.5%, rgba(245, 184, 66, .035)),
+        linear-gradient(60deg, rgba(245, 184, 66, .025) 25%, transparent 25.5%, transparent 75%, rgba(245, 184, 66, .025) 75%, rgba(245, 184, 66, .025));
+      background-position: 0 0, 0 0, 32px 56px, 32px 56px, 0 0;
+      background-size: 64px 112px;
     }
-    .row-in { animation: rowIn 200ms ease-out; }
 
-    /* A brief highlight on the newest row, calmer than a full-screen flash so it reads
-       as "something just happened" without startling anyone watching the demo. */
-    @keyframes rowHighlight {
-      0% { background-color: rgba(16, 185, 129, 0.18); }
-      100% { background-color: transparent; }
+    .hexagon {
+      clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%);
     }
-    .row-highlight { animation: rowHighlight 2s ease-out; }
+
+    .corner-cut {
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+    }
+
+    .hazard-stripe {
+      background-image: repeating-linear-gradient(135deg, rgba(245, 184, 66, .85) 0 7px, rgba(245, 184, 66, .12) 7px 14px);
+    }
+
+    .radar-face {
+      background:
+        radial-gradient(circle, transparent 19%, rgba(245, 184, 66, .09) 19.5%, transparent 20.2%, transparent 39%, rgba(245, 184, 66, .08) 39.5%, transparent 40.2%, transparent 59%, rgba(245, 184, 66, .07) 59.5%, transparent 60.2%, transparent 79%, rgba(245, 184, 66, .06) 79.5%, transparent 80.2%),
+        linear-gradient(90deg, transparent 49.7%, rgba(245, 184, 66, .08) 50%, transparent 50.3%),
+        linear-gradient(0deg, transparent 49.7%, rgba(245, 184, 66, .08) 50%, transparent 50.3%);
+    }
+
+    @keyframes radar-sweep {
+      from { transform: rotate(0deg) }
+      to { transform: rotate(360deg) }
+    }
+
+    @keyframes shield-breathe {
+      0%, 100% { filter: drop-shadow(0 0 10px rgba(245, 184, 66, .2)) }
+      50% { filter: drop-shadow(0 0 26px rgba(245, 184, 66, .55)) }
+    }
+
+    @keyframes blip-pulse {
+      0%, 100% { opacity: .35; transform: scale(.75) }
+      50% { opacity: 1; transform: scale(1.2) }
+    }
+
+    @keyframes alert-in {
+      0% { opacity: 0; transform: translateY(-12px) scale(1.03) }
+      100% { opacity: 1; transform: translateY(0) scale(1) }
+    }
+
+    @keyframes row-in {
+      from { opacity: 0; transform: translateX(-12px); background-color: rgba(248, 113, 113, .14) }
+      to { opacity: 1; transform: translateX(0); background-color: transparent }
+    }
+
+    .radar-sweep { animation: radar-sweep 5s linear infinite }
+    .shield-breathe { animation: shield-breathe 2.8s ease-in-out infinite }
+    .blip-pulse { animation: blip-pulse 1.6s ease-in-out infinite }
+    .alert-in { animation: alert-in .4s cubic-bezier(.2, .8, .25, 1) both }
+    .row-in { animation: row-in 1.8s ease-out both }
+
+    @media (prefers-reduced-motion: reduce) {
+      .radar-sweep, .shield-breathe, .blip-pulse, .alert-in, .row-in { animation: none }
+    }
   </style>
 </head>
-<body class="min-h-screen bg-slate-50 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-200">
-  <div class="mx-auto max-w-2xl px-5 py-10">
-    <!-- Top bar: connection status, theme toggle, link to the attack simulator. -->
-    <div class="mb-6 flex items-center justify-between">
-      <div class="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-500">
-        <span id="connection-dot" class="h-2 w-2 rounded-full bg-slate-400 dark:bg-slate-600"></span>
-        <span id="connection-label">Connecting…</span>
-      </div>
+<body class="min-h-screen overflow-x-hidden bg-[#080906] font-sans text-stone-100 antialiased selection:bg-amber-300 selection:text-black">
+  <div class="pointer-events-none fixed inset-0 honey-grid" aria-hidden="true"></div>
+  <div class="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,rgba(245,184,66,0.11),transparent_68%)]" aria-hidden="true"></div>
+
+  <div class="relative mx-auto max-w-[90rem] px-4 py-5 sm:px-7 lg:px-10">
+    <header class="flex items-center justify-between border-b border-amber-200/10 pb-4">
+      <a href="/" class="flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-amber-300">
+        <span class="hexagon flex h-11 w-11 items-center justify-center bg-amber-300 text-black">
+          <svg aria-hidden="true" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.8 4.4 6v5.6c0 4.7 3.1 8 7.6 9.6 4.5-1.6 7.6-4.9 7.6-9.6V6L12 2.8Z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.7 12.2 11 14.5l4.7-5" />
+          </svg>
+        </span>
+        <span>
+          <span class="block text-sm font-bold uppercase tracking-[.16em] text-amber-100">HoneyGuard</span>
+          <span class="block font-mono text-[9px] uppercase tracking-[.26em] text-amber-300/45">Defense center / live</span>
+        </span>
+      </a>
+
       <div class="flex items-center gap-2">
-        <button
-          id="theme-toggle-button"
-          type="button"
-          aria-label="Toggle light and dark theme"
-          onclick="handleThemeToggle()"
-          onkeydown="if (event.key === 'Enter' || event.key === ' ') handleThemeToggle()"
-          class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-        ><span class="dark:hidden">Dark mode</span><span class="hidden dark:inline">Light mode</span></button>
+        <div id="connection-pill" class="hidden items-center gap-2 border border-stone-800 bg-black/20 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-stone-600 sm:flex">
+          <span id="connection-dot" class="h-1.5 w-1.5 rounded-full bg-stone-600"></span>
+          <span id="connection-label">Connecting</span>
+        </div>
         <a
           href="/attack.html"
-          aria-label="Open the attack simulator"
-          class="rounded-md bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500"
-        >Play the attacker →</a>
+          class="corner-cut inline-flex items-center gap-2 bg-amber-300 px-4 py-2.5 text-xs font-black uppercase tracking-[.12em] text-black shadow-[0_0_28px_rgba(245,184,66,.14)] transition hover:bg-amber-200 hover:shadow-[0_0_36px_rgba(245,184,66,.25)] focus:outline-none focus:ring-2 focus:ring-amber-100"
+        >
+          <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7 4v16l13-8L7 4Z" />
+          </svg>
+          Run attack
+        </a>
       </div>
-    </div>
+    </header>
 
-    <!-- Headline + one-sentence explanation. -->
-    <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-50">HoneyGuard</h1>
-    <p class="mt-2 text-slate-600 dark:text-slate-400">
-      Hidden trap routes catch attackers the moment they probe for weaknesses, block them
-      instantly, and show up here — live, with no refresh needed.
-    </p>
+    <main class="pb-12 pt-8">
+      <section class="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+        <div>
+          <div class="mb-3 flex items-center gap-3">
+            <span class="hazard-stripe h-1.5 w-14"></span>
+            <p class="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-amber-300/70">Perimeter intelligence</p>
+          </div>
+          <h1 class="max-w-4xl text-4xl font-bold leading-[.95] tracking-[-.05em] text-white sm:text-6xl">
+            Every probe
+            <span class="text-amber-300">leaves a trace.</span>
+          </h1>
+          <p class="mt-4 max-w-2xl text-sm leading-6 text-stone-500 sm:text-base">
+            Hidden routes become tripwires. HoneyGuard contains the source at the edge,
+            then streams the evidence here.
+          </p>
+        </div>
 
-    <!-- Three-part explainer, mirrors the attack simulator's steps. -->
-    <ol class="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
-      <li class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">1</span>
-        Attacker touches a hidden trap
-      </li>
-      <li class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">2</span>
-        Their IP is blocked instantly
-      </li>
-      <li class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">3</span>
-        It shows up here, live
-      </li>
-    </ol>
+        <div class="flex items-center gap-3 border-l-2 border-emerald-400/40 pl-4">
+          <span class="relative flex h-3 w-3">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-35"></span>
+            <span class="relative inline-flex h-3 w-3 rounded-full bg-emerald-400"></span>
+          </span>
+          <div>
+            <p class="font-mono text-[9px] font-bold uppercase tracking-[.2em] text-emerald-300">Protection active</p>
+            <p class="mt-1 font-mono text-[9px] text-stone-600">Every request inspected</p>
+          </div>
+        </div>
+      </section>
 
-    <!-- The two judge-relevant numbers - kept plain-language and few. -->
-    <div class="mt-6 grid grid-cols-2 gap-3">
-      <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-        <p class="text-sm text-slate-500 dark:text-slate-500">Attacks blocked</p>
-        <p id="metric-total" class="text-2xl font-bold text-slate-900 dark:text-slate-50">0</p>
-      </div>
-      <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-        <p class="text-sm text-slate-500 dark:text-slate-500">Attackers blocked</p>
-        <p id="metric-unique-ips" class="text-2xl font-bold text-slate-900 dark:text-slate-50">0</p>
-      </div>
-    </div>
+      <section class="mt-8 grid gap-4 xl:grid-cols-[26rem_1fr]">
+        <article class="corner-cut relative min-h-[30rem] overflow-hidden border border-amber-200/15 bg-[#0b0c08]/95 p-5 shadow-[0_25px_90px_rgba(0,0,0,.5)]">
+          <div class="absolute inset-x-0 top-0 h-1 hazard-stripe opacity-75"></div>
+          <div class="absolute inset-0 honey-grid opacity-40" aria-hidden="true"></div>
 
-    <!-- Activity feed. -->
-    <div class="mt-6 flex items-center justify-between">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500">Live activity</h2>
-      <button
-        id="reset-button"
-        type="button"
-        aria-label="Clear all active bans and reset the demo"
-        class="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-      >Run demo again</button>
-    </div>
+          <div class="relative flex items-center justify-between">
+            <div>
+              <p class="font-mono text-[9px] font-bold uppercase tracking-[.22em] text-amber-300/65">Perimeter radar</p>
+              <p class="mt-1 font-mono text-[9px] text-stone-700">LIVE / GLOBAL / EDGE-01</p>
+            </div>
+            <span id="radar-status" class="font-mono text-[9px] font-bold text-emerald-300">SCANNING</span>
+          </div>
 
-    <ul id="incident-list" class="mt-3 space-y-2">
-      <li id="empty-state" class="rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-500">
-        No attacks yet.
-        <a href="/attack.html" class="font-medium text-rose-600 underline hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300">Play the attacker</a>
-        to see one blocked here in real time.
-      </li>
-    </ul>
+          <div class="relative mx-auto mt-6 aspect-square w-full max-w-[21rem]">
+            <div class="radar-face absolute inset-0 rounded-full border border-amber-300/15 bg-black/30"></div>
+            <div class="radar-sweep absolute inset-[2px] overflow-hidden rounded-full">
+              <div class="absolute left-1/2 top-1/2 h-1/2 w-1/2 origin-top-left bg-[conic-gradient(from_270deg,rgba(245,184,66,.2),transparent_42deg)]"></div>
+            </div>
+            <div id="radar-blips" class="absolute inset-0"></div>
+            <div class="hexagon shield-breathe absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center bg-amber-300 text-black">
+              <svg aria-hidden="true" class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.8 4.4 6v5.6c0 4.7 3.1 8 7.6 9.6 4.5-1.6 7.6-4.9 7.6-9.6V6L12 2.8Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.7 12.2 11 14.5l4.7-5" />
+              </svg>
+            </div>
+          </div>
+
+          <div class="relative mt-3 grid grid-cols-3 divide-x divide-amber-200/10 border-y border-amber-200/10 py-3">
+            <div class="px-2 text-center">
+              <p id="metric-total" class="font-mono text-2xl font-black text-white">0</p>
+              <p class="mt-1 font-mono text-[7px] uppercase tracking-[.17em] text-stone-700">Contained</p>
+            </div>
+            <div class="px-2 text-center">
+              <p id="metric-unique-ips" class="font-mono text-2xl font-black text-white">0</p>
+              <p class="mt-1 font-mono text-[7px] uppercase tracking-[.17em] text-stone-700">Attackers</p>
+            </div>
+            <div class="px-2 text-center">
+              <p id="metric-last-seen" class="font-mono text-sm font-black text-white">—</p>
+              <p class="mt-2 font-mono text-[7px] uppercase tracking-[.17em] text-stone-700">Last event</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="corner-cut overflow-hidden border border-amber-200/15 bg-[#0b0c08]/90 shadow-[0_25px_90px_rgba(0,0,0,.4)]">
+          <div class="flex flex-wrap items-center justify-between gap-4 border-b border-amber-200/10 bg-black/20 px-5 py-4 sm:px-6">
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-[10px] font-black uppercase tracking-[.22em] text-amber-300">Evidence ledger</span>
+              <span id="ledger-count" class="border border-stone-800 px-2 py-1 font-mono text-[8px] text-stone-600">0 EVENTS</span>
+            </div>
+            <button
+              id="reset-button"
+              type="button"
+              class="flex items-center gap-2 border border-stone-800 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.12em] text-stone-600 transition hover:border-amber-300/30 hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-50"
+            >
+              <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M5.1 15a8 8 0 0 0 13.3 2M18.9 9A8 8 0 0 0 5.6 7" />
+              </svg>
+              <span id="reset-button-label">Clear active bans</span>
+            </button>
+          </div>
+
+          <div id="latest-alert" class="hidden border-b border-emerald-400/25 bg-emerald-400/5 px-5 py-4 sm:px-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <span class="hexagon flex h-10 w-10 items-center justify-center bg-emerald-400 text-black">
+                  <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6" />
+                  </svg>
+                </span>
+                <div>
+                  <p class="font-mono text-[9px] font-black uppercase tracking-[.2em] text-emerald-300">New threat contained</p>
+                  <p id="latest-alert-summary" class="mt-1 font-mono text-[10px] text-emerald-200/60">Waiting for event</p>
+                </div>
+              </div>
+              <span id="latest-alert-time" class="font-mono text-[9px] text-emerald-300/45"></span>
+            </div>
+          </div>
+
+          <div class="hidden grid-cols-[3.2rem_8rem_1fr_6rem] gap-4 border-b border-amber-200/5 px-6 py-3 font-mono text-[8px] font-bold uppercase tracking-[.18em] text-stone-800 sm:grid">
+            <span>Case</span>
+            <span>Source</span>
+            <span>Evidence</span>
+            <span class="text-right">Time</span>
+          </div>
+
+          <ul id="incident-list" class="max-h-[34rem] divide-y divide-amber-200/5 overflow-y-auto">
+            <li id="empty-state" class="px-6 py-20 text-center">
+              <span class="hexagon mx-auto flex h-14 w-14 items-center justify-center border border-stone-800 bg-black/30 text-stone-700">
+                <svg aria-hidden="true" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.8 4.4 6v5.6c0 4.7 3.1 8 7.6 9.6 4.5-1.6 7.6-4.9 7.6-9.6V6L12 2.8Z" />
+                </svg>
+              </span>
+              <p class="mt-4 text-sm font-bold uppercase tracking-[.1em] text-stone-500">Perimeter quiet</p>
+              <p class="mx-auto mt-2 max-w-sm font-mono text-[10px] leading-5 text-stone-700">No trap has been touched. Launch the attack theater to create a visible incident.</p>
+              <a href="/attack.html" class="mt-5 inline-flex items-center gap-2 border-b border-amber-300/30 pb-1 text-xs font-bold uppercase tracking-[.12em] text-amber-300 hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-300">
+                Start attack →
+              </a>
+            </li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="mt-5 grid gap-4 lg:grid-cols-[1fr_22rem]">
+        <div class="corner-cut border border-amber-200/10 bg-black/25 px-5 py-4">
+          <div class="grid gap-4 sm:grid-cols-3">
+            <div class="flex items-center gap-3">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center border border-amber-300/20 font-mono text-[9px] font-black text-amber-300">01</span>
+              <div>
+                <p class="text-xs font-bold text-stone-300">Decoy touched</p>
+                <p class="mt-1 font-mono text-[8px] text-stone-700">Scanner reveals intent</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center border border-red-400/20 font-mono text-[9px] font-black text-red-400">02</span>
+              <div>
+                <p class="text-xs font-bold text-stone-300">Source contained</p>
+                <p class="mt-1 font-mono text-[8px] text-stone-700">IP blocked at the edge</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center border border-emerald-400/20 font-mono text-[9px] font-black text-emerald-300">03</span>
+              <div>
+                <p class="text-xs font-bold text-stone-300">Evidence streamed</p>
+                <p class="mt-1 font-mono text-[8px] text-stone-700">Dashboard updates live</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <a href="/attack.html" class="group corner-cut flex items-center justify-between bg-amber-300 px-5 py-4 text-black transition hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-100">
+          <span>
+            <span class="block text-xs font-black uppercase tracking-[.13em]">Open threat theater</span>
+            <span class="mt-1 block font-mono text-[8px] uppercase tracking-[.14em] text-black/55">See the protection happen</span>
+          </span>
+          <svg aria-hidden="true" class="h-6 w-6 transition group-hover:translate-x-1" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7 4v16l13-8L7 4Z" />
+          </svg>
+        </a>
+      </section>
+    </main>
   </div>
 
   <script type="module">
@@ -116,33 +294,108 @@
 
     const incidentListElement = document.getElementById('incident-list')
     const emptyStateElement = document.getElementById('empty-state')
+    const radarBlipsElement = document.getElementById('radar-blips')
+    const radarStatusElement = document.getElementById('radar-status')
+    const connectionPillElement = document.getElementById('connection-pill')
     const connectionDotElement = document.getElementById('connection-dot')
     const connectionLabelElement = document.getElementById('connection-label')
     const resetButtonElement = document.getElementById('reset-button')
-
+    const resetButtonLabelElement = document.getElementById('reset-button-label')
     const metricTotalElement = document.getElementById('metric-total')
     const metricUniqueIpsElement = document.getElementById('metric-unique-ips')
+    const metricLastSeenElement = document.getElementById('metric-last-seen')
+    const ledgerCountElement = document.getElementById('ledger-count')
+    const latestAlertElement = document.getElementById('latest-alert')
+    const latestAlertSummaryElement = document.getElementById('latest-alert-summary')
+    const latestAlertTimeElement = document.getElementById('latest-alert-time')
 
     const seenIncidentIds = new Set()
     const attackerIpAddresses = new Set()
     let totalAttackCount = 0
+    let lastSeenTimestamp = null
 
-    const formatTimestamp = (isoString) => new Date(isoString).toLocaleTimeString('en-GB')
+    const formatTimestamp = (isoString) => new Date(isoString).toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+
+    const createElement = (tagName, className, textContent) => {
+      const element = document.createElement(tagName)
+      element.className = className
+      if (textContent !== undefined) element.textContent = textContent
+      return element
+    }
 
     const setConnectionStatus = (status) => {
-      const statusStyles = {
-        init: { dot: 'bg-slate-400 dark:bg-slate-600', label: 'Connecting…' },
-        connected: { dot: 'bg-emerald-500', label: 'Live' },
-        disconnected: { dot: 'bg-rose-500', label: 'Disconnected' },
+      const states = {
+        connecting: {
+          pill: 'hidden items-center gap-2 border border-stone-800 bg-black/20 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-stone-600 sm:flex',
+          dot: 'h-1.5 w-1.5 rounded-full bg-stone-600',
+          label: 'Connecting',
+          radar: 'SCANNING',
+        },
+        connected: {
+          pill: 'hidden items-center gap-2 border border-emerald-400/20 bg-emerald-400/5 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-emerald-300 sm:flex',
+          dot: 'h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.8)]',
+          label: 'Realtime live',
+          radar: 'SCANNING',
+        },
+        disconnected: {
+          pill: 'hidden items-center gap-2 border border-red-400/20 bg-red-400/5 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-red-300 sm:flex',
+          dot: 'h-1.5 w-1.5 rounded-full bg-red-400',
+          label: 'Disconnected',
+          radar: 'SIGNAL LOST',
+        },
       }
-      const style = statusStyles[status] ?? statusStyles.init
-      connectionDotElement.className = `h-2 w-2 rounded-full ${style.dot}`
-      connectionLabelElement.textContent = style.label
+      const state = states[status] ?? states.connecting
+      connectionPillElement.className = state.pill
+      connectionDotElement.className = state.dot
+      connectionLabelElement.textContent = state.label
+      radarStatusElement.textContent = state.radar
+      radarStatusElement.className = status === 'disconnected'
+        ? 'font-mono text-[9px] font-bold text-red-400'
+        : 'font-mono text-[9px] font-bold text-emerald-300'
     }
 
     const updateMetrics = () => {
       metricTotalElement.textContent = String(totalAttackCount)
       metricUniqueIpsElement.textContent = String(attackerIpAddresses.size)
+      metricLastSeenElement.textContent = lastSeenTimestamp ? formatTimestamp(lastSeenTimestamp) : '—'
+      ledgerCountElement.textContent = `${totalAttackCount} ${totalAttackCount === 1 ? 'EVENT' : 'EVENTS'}`
+    }
+
+    const getRadarPosition = (incident) => {
+      const seed = Number(incident.id) || incident.ip_address.length
+      const angle = (seed * 137.5) * (Math.PI / 180)
+      const radius = 19 + ((seed * 11) % 24)
+      return {
+        left: 50 + Math.cos(angle) * radius,
+        top: 50 + Math.sin(angle) * radius,
+      }
+    }
+
+    const addRadarBlip = (incident, animate) => {
+      const position = getRadarPosition(incident)
+      const blipElement = createElement('span', `absolute h-2 w-2 rounded-full bg-red-400 shadow-[0_0_13px_rgba(248,113,113,.9)] ${animate ? 'blip-pulse' : ''}`)
+      blipElement.style.left = `${position.left}%`
+      blipElement.style.top = `${position.top}%`
+      blipElement.title = `${incident.ip_address} · ${incident.path}`
+      radarBlipsElement.appendChild(blipElement)
+
+      while (radarBlipsElement.children.length > 18) {
+        radarBlipsElement.firstElementChild.remove()
+      }
+    }
+
+    const showLatestAlert = (incident, animate) => {
+      latestAlertElement.classList.remove('hidden')
+      latestAlertElement.classList.toggle('alert-in', animate)
+      latestAlertSummaryElement.textContent = `${incident.ip_address} stopped at ${incident.path}`
+      latestAlertTimeElement.textContent = formatTimestamp(incident.created_at)
+      if (animate) {
+        setTimeout(() => latestAlertElement.classList.remove('alert-in'), 700)
+      }
     }
 
     const renderIncidentRow = (incident, { animate }) => {
@@ -151,63 +404,96 @@
 
       totalAttackCount += 1
       attackerIpAddresses.add(incident.ip_address)
+      if (!lastSeenTimestamp || new Date(incident.created_at) > new Date(lastSeenTimestamp)) {
+        lastSeenTimestamp = incident.created_at
+      }
 
       emptyStateElement.classList.add('hidden')
+      addRadarBlip(incident, animate)
+      showLatestAlert(incident, animate)
 
-      const rowElement = document.createElement('li')
-      rowElement.className = `flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 ${animate ? 'row-in row-highlight' : ''}`
-      rowElement.innerHTML = `
-        <div class="flex min-w-0 items-center gap-2">
-          <span class="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-950 dark:text-rose-400">Blocked</span>
-          <span class="truncate text-sm text-slate-700 dark:text-slate-300">
-            <span class="font-mono font-semibold">${incident.ip_address}</span>
-            tried <span class="font-mono">${incident.path}</span>
-          </span>
-        </div>
-        <span class="shrink-0 text-xs text-slate-400 dark:text-slate-500">${formatTimestamp(incident.created_at)}</span>
-      `
+      const rowElement = createElement(
+        'li',
+        `grid gap-2 px-5 py-4 transition hover:bg-amber-300/[.025] sm:grid-cols-[3.2rem_8rem_1fr_6rem] sm:items-center sm:gap-4 sm:px-6 ${animate ? 'row-in' : ''}`,
+      )
+
+      const caseNumber = String(totalAttackCount).padStart(3, '0')
+      const caseElement = createElement('span', 'font-mono text-[9px] font-bold text-stone-700', `#${caseNumber}`)
+
+      const sourceContainerElement = createElement('div', 'flex min-w-0 items-center gap-2')
+      const threatDotElement = createElement('span', `h-1.5 w-1.5 shrink-0 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,.7)] ${animate ? 'animate-pulse' : ''}`)
+      const ipAddressElement = createElement('span', 'truncate font-mono text-[10px] font-bold text-stone-300', incident.ip_address)
+      sourceContainerElement.append(threatDotElement, ipAddressElement)
+
+      const evidenceContainerElement = createElement('div', 'min-w-0')
+      const evidenceLineElement = createElement('div', 'flex min-w-0 flex-wrap items-center gap-2')
+      const blockedElement = createElement('span', 'border border-red-400/15 bg-red-400/5 px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-[.12em] text-red-400', 'Contained')
+      const pathElement = createElement('span', 'min-w-0 truncate font-mono text-[10px] text-stone-300', incident.path)
+      evidenceLineElement.append(blockedElement, pathElement)
+      const detailElement = createElement('p', 'mt-1 font-mono text-[8px] text-stone-700', `${incident.method} · hidden route triggered · IP banned`)
+      evidenceContainerElement.append(evidenceLineElement, detailElement)
+
+      const timeElement = createElement('time', 'font-mono text-[9px] text-stone-700 sm:text-right', formatTimestamp(incident.created_at))
+      timeElement.dateTime = incident.created_at
+
+      rowElement.append(caseElement, sourceContainerElement, evidenceContainerElement, timeElement)
       incidentListElement.prepend(rowElement)
-
       updateMetrics()
     }
 
-    const startDashboard = async () => {
-      const configResponse = await fetch('/api/dashboard/config')
-      const { supabaseUrl, supabaseAnonKey } = await configResponse.json()
-      const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-      // Backfill whatever already happened before this page loaded, so a refresh never
-      // shows an empty feed.
-      const { data: recentIncidents } = await supabase
-        .from('incidents')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      for (const incident of (recentIncidents ?? []).reverse()) {
-        renderIncidentRow(incident, { animate: false })
+    const handleResetBans = async () => {
+      resetButtonElement.disabled = true
+      resetButtonLabelElement.textContent = 'Clearing…'
+      try {
+        const response = await fetch('/api/dashboard/reset', { method: 'POST' })
+        resetButtonLabelElement.textContent = response.ok ? 'Bans cleared' : 'Reset unavailable'
+      } catch {
+        resetButtonLabelElement.textContent = 'Reset failed'
       }
-
-      // From here on, every new row inserted into `incidents` arrives over this
-      // WebSocket channel the instant Postgres commits it - no polling, no refresh.
-      supabase
-        .channel('honeyguard-incidents')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'incidents' },
-          (payload) => renderIncidentRow(payload.new, { animate: true }),
-        )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') setConnectionStatus('connected')
-          else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') setConnectionStatus('disconnected')
-        })
-
-      resetButtonElement.addEventListener('click', async () => {
-        await fetch('/api/dashboard/reset', { method: 'POST' })
-      })
+      setTimeout(() => {
+        resetButtonLabelElement.textContent = 'Clear active bans'
+        resetButtonElement.disabled = false
+      }, 1600)
     }
 
-    startDashboard()
+    const startDefenseCenter = async () => {
+      setConnectionStatus('connecting')
+      try {
+        const configResponse = await fetch('/api/dashboard/config')
+        if (!configResponse.ok) throw new Error('Configuration unavailable')
+        const { supabaseUrl, supabaseAnonKey } = await configResponse.json()
+        const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+        const { data: recentIncidents, error } = await supabase
+          .from('incidents')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50)
+
+        if (error) throw error
+
+        for (const incident of (recentIncidents ?? []).reverse()) {
+          renderIncidentRow(incident, { animate: false })
+        }
+
+        supabase
+          .channel('honeyguard-incidents')
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'incidents' },
+            (payload) => renderIncidentRow(payload.new, { animate: true }),
+          )
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') setConnectionStatus('connected')
+            else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') setConnectionStatus('disconnected')
+          })
+      } catch {
+        setConnectionStatus('disconnected')
+      }
+    }
+
+    resetButtonElement.addEventListener('click', handleResetBans)
+    startDefenseCenter()
   </script>
 </body>
 </html>

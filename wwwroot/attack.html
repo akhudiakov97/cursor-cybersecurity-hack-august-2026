@@ -3,212 +3,778 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HoneyGuard — Attack simulator</title>
-  <!-- Render-blocking and loaded before Tailwind so the .dark class lands on <html>
-       before first paint - avoids a flash of the wrong theme. -->
-  <script src="/theme.js"></script>
+  <meta name="theme-color" content="#080906" />
+  <title>HoneyGuard — Threat Theater</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <link rel="icon" href="data:," />
   <style type="text/tailwindcss">
-    /* Tailwind v4's `dark:` variant follows prefers-color-scheme by default. This
-       redefines it to key off a `.dark` class on <html> instead, so theme.js can
-       toggle it manually and persist the choice. */
-    @custom-variant dark (&:where(.dark, .dark *));
+    @theme {
+      --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
   </style>
   <style>
-    @keyframes stepIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
+    .honey-grid {
+      background-image:
+        linear-gradient(30deg, rgba(245, 184, 66, .035) 12%, transparent 12.5%, transparent 87%, rgba(245, 184, 66, .035) 87.5%, rgba(245, 184, 66, .035)),
+        linear-gradient(150deg, rgba(245, 184, 66, .035) 12%, transparent 12.5%, transparent 87%, rgba(245, 184, 66, .035) 87.5%, rgba(245, 184, 66, .035)),
+        linear-gradient(30deg, rgba(245, 184, 66, .035) 12%, transparent 12.5%, transparent 87%, rgba(245, 184, 66, .035) 87.5%, rgba(245, 184, 66, .035)),
+        linear-gradient(150deg, rgba(245, 184, 66, .035) 12%, transparent 12.5%, transparent 87%, rgba(245, 184, 66, .035) 87.5%, rgba(245, 184, 66, .035)),
+        linear-gradient(60deg, rgba(245, 184, 66, .025) 25%, transparent 25.5%, transparent 75%, rgba(245, 184, 66, .025) 75%, rgba(245, 184, 66, .025));
+      background-position: 0 0, 0 0, 32px 56px, 32px 56px, 0 0;
+      background-size: 64px 112px;
     }
-    .step-in { animation: stepIn 200ms ease-out; }
+
+    .hexagon {
+      clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%);
+    }
+
+    .corner-cut {
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+    }
+
+    .hazard-stripe {
+      background-image: repeating-linear-gradient(135deg, rgba(245, 184, 66, .85) 0 7px, rgba(245, 184, 66, .12) 7px 14px);
+    }
+
+    @keyframes radar-sweep {
+      from { transform: rotate(0deg) }
+      to { transform: rotate(360deg) }
+    }
+
+    @keyframes shield-breathe {
+      0%, 100% { filter: drop-shadow(0 0 12px rgba(245, 184, 66, .22)) }
+      50% { filter: drop-shadow(0 0 30px rgba(245, 184, 66, .55)) }
+    }
+
+    @keyframes alert-shake {
+      0%, 100% { transform: translateX(0) }
+      20% { transform: translateX(-7px) }
+      40% { transform: translateX(7px) }
+      60% { transform: translateX(-4px) }
+      80% { transform: translateX(4px) }
+    }
+
+    @keyframes stamp-in {
+      0% { opacity: 0; transform: scale(1.8) rotate(-7deg) }
+      65% { opacity: 1; transform: scale(.94) rotate(-2deg) }
+      100% { opacity: 1; transform: scale(1) rotate(-2deg) }
+    }
+
+    @keyframes trap-flash {
+      0%, 100% { box-shadow: 0 0 0 rgba(251, 191, 36, 0) }
+      50% { box-shadow: 0 0 52px rgba(251, 191, 36, .55) }
+    }
+
+    .radar-sweep { animation: radar-sweep 7s linear infinite }
+    .shield-breathe { animation: shield-breathe 2.8s ease-in-out infinite }
+    .alert-shake { animation: alert-shake .42s ease-in-out }
+    .stamp-in { animation: stamp-in .42s cubic-bezier(.2, .9, .3, 1.15) both }
+    .trap-flash { animation: trap-flash .7s ease-in-out 2 }
+
+    @media (prefers-reduced-motion: reduce) {
+      .radar-sweep, .shield-breathe, .alert-shake, .stamp-in, .trap-flash { animation: none }
+    }
   </style>
 </head>
-<body class="min-h-screen bg-slate-50 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-200">
-  <div class="mx-auto max-w-2xl px-5 py-10">
-    <!-- Top bar: theme toggle + link back to the defender dashboard. -->
-    <div class="mb-6 flex items-center justify-between">
-      <span class="text-sm font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">Attack simulator</span>
+<body class="min-h-screen overflow-x-hidden bg-[#080906] font-sans text-stone-100 antialiased selection:bg-amber-300 selection:text-black">
+  <div class="pointer-events-none fixed inset-0 honey-grid" aria-hidden="true"></div>
+  <div class="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,rgba(245,184,66,0.12),transparent_68%)]" aria-hidden="true"></div>
+  <div class="pointer-events-none fixed bottom-0 left-1/2 h-64 w-[52rem] -translate-x-1/2 bg-[radial-gradient(ellipse_at_bottom,rgba(120,53,15,0.12),transparent_70%)]" aria-hidden="true"></div>
+
+  <div class="relative mx-auto max-w-[90rem] px-4 py-5 sm:px-7 lg:px-10">
+    <header class="flex items-center justify-between border-b border-amber-200/10 pb-4">
+      <a href="/" class="flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-amber-300">
+        <span class="hexagon flex h-11 w-11 items-center justify-center bg-amber-300 text-black">
+          <svg aria-hidden="true" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.8 4.4 6v5.6c0 4.7 3.1 8 7.6 9.6 4.5-1.6 7.6-4.9 7.6-9.6V6L12 2.8Z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.7 12.2 11 14.5l4.7-5" />
+          </svg>
+        </span>
+        <span>
+          <span class="block text-sm font-bold uppercase tracking-[.16em] text-amber-100">HoneyGuard</span>
+          <span class="block font-mono text-[9px] uppercase tracking-[.26em] text-amber-300/45">Threat theater / 01</span>
+        </span>
+      </a>
+
       <div class="flex items-center gap-2">
-        <button
-          id="theme-toggle-button"
-          type="button"
-          aria-label="Toggle light and dark theme"
-          onclick="handleThemeToggle()"
-          onkeydown="if (event.key === 'Enter' || event.key === ' ') handleThemeToggle()"
-          class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-        ><span class="dark:hidden">Dark mode</span><span class="hidden dark:inline">Light mode</span></button>
+        <span class="hidden items-center gap-2 border border-red-400/20 bg-red-400/5 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[.16em] text-red-300 sm:flex">
+          <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400"></span>
+          Simulation armed
+        </span>
         <a
-          href="/index.html"
-          aria-label="Open the defender dashboard"
-          class="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        >Open defender dashboard →</a>
+          href="/"
+          class="corner-cut inline-flex items-center gap-2 border border-amber-200/15 bg-amber-100/5 px-4 py-2.5 text-xs font-bold uppercase tracking-[.12em] text-amber-100 transition hover:border-amber-300/40 hover:bg-amber-300/10 focus:outline-none focus:ring-2 focus:ring-amber-300"
+        >
+          Defense center
+          <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
+          </svg>
+        </a>
       </div>
-    </div>
+    </header>
 
-    <!-- Headline + one-sentence explanation. -->
-    <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-50">Play the attacker</h1>
-    <p class="mt-2 text-slate-600 dark:text-slate-400">
-      This page sends real requests to the app, pretending to be an outside attacker. Click
-      <strong>Run attack demo</strong> and watch what HoneyGuard does to it.
-    </p>
-    <p id="demo-mode-warning" class="mt-2 hidden rounded-md bg-amber-100 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-      Demo mode is off on this server, so requests will use your real IP address instead of a simulated one.
-    </p>
-
-    <!-- Primary action. -->
-    <div class="mt-6 flex flex-wrap items-center gap-3">
-      <button
-        id="run-sequence-button"
-        type="button"
-        aria-label="Run the three-step attack demo"
-        class="rounded-md bg-rose-600 px-5 py-2.5 text-base font-semibold text-white shadow-sm hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
-      >Run attack demo</button>
-      <span class="text-sm text-slate-500 dark:text-slate-500">
-        simulated attacker IP: <span id="attacker-ip" class="font-mono font-semibold text-slate-700 dark:text-slate-300">--</span>
-      </span>
-    </div>
-
-    <!-- Three-step story. -->
-    <ol id="step-list" class="mt-8 space-y-3">
-      <li data-step="1" class="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">1</span>
-        <div class="min-w-0 flex-1">
-          <p class="font-medium text-slate-900 dark:text-slate-100">Send a normal request</p>
-          <p class="text-sm text-slate-500 dark:text-slate-500">A real request to the product API. Should go through fine.</p>
+    <main class="pb-12 pt-8">
+      <section class="mb-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+        <div>
+          <div class="mb-3 flex items-center gap-3">
+            <span class="hazard-stripe h-1.5 w-14"></span>
+            <p class="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-amber-300/70">Live security experiment</p>
+          </div>
+          <h1 class="max-w-4xl text-3xl font-bold leading-none tracking-[-.045em] text-white sm:text-5xl lg:text-6xl">
+            Watch one IP go from
+            <span class="text-amber-300">trusted</span>
+            to
+            <span class="text-red-400">blocked.</span>
+          </h1>
         </div>
-        <span data-status class="mt-0.5 shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">waiting</span>
-      </li>
-      <li data-step="2" class="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">2</span>
-        <div class="min-w-0 flex-1">
-          <p class="font-medium text-slate-900 dark:text-slate-100">Probe a hidden trap</p>
-          <p class="text-sm text-slate-500 dark:text-slate-500">Touches a fake vulnerable-looking route. Looks like a dead end, but the IP just got banned.</p>
-        </div>
-        <span data-status class="mt-0.5 shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">waiting</span>
-      </li>
-      <li data-step="3" class="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">3</span>
-        <div class="min-w-0 flex-1">
-          <p class="font-medium text-slate-900 dark:text-slate-100">Try the same normal request again</p>
-          <p class="text-sm text-slate-500 dark:text-slate-500">Same request as step 1 — but this attacker is banned now.</p>
-        </div>
-        <span data-status data-outcome class="mt-0.5 shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">waiting</span>
-      </li>
-    </ol>
 
-    <!-- Result banner, shown once the sequence finishes. -->
-    <div id="result-banner" class="mt-6 hidden items-center justify-between gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950">
-      <p class="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-        Blocked. The incident should already be on the defender dashboard.
+        <div class="flex min-w-0 items-center gap-3 border-l-2 border-amber-300/40 pl-4">
+          <div>
+            <p class="font-mono text-[9px] uppercase tracking-[.2em] text-stone-600">Current attacker</p>
+            <p id="hero-ip-address" class="mt-1 truncate font-mono text-sm font-bold text-amber-200">203.0.113.42</p>
+          </div>
+          <button
+            id="hero-randomize-button"
+            type="button"
+            aria-label="Generate a new attacker IP"
+            class="flex h-9 w-9 shrink-0 items-center justify-center border border-amber-300/20 bg-amber-300/5 text-amber-300 transition hover:bg-amber-300/15 focus:outline-none focus:ring-2 focus:ring-amber-300"
+          >
+            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <p id="demo-mode-warning" role="alert" class="mb-5 hidden border border-amber-300/20 bg-amber-300/5 px-4 py-3 font-mono text-xs text-amber-200">
+        Demo mode is off. Simulated IP addresses are unavailable on this server.
       </p>
-      <a
-        href="/index.html"
-        aria-label="Open the defender dashboard"
-        class="shrink-0 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-      >View it →</a>
-    </div>
 
-    <p class="mt-8 text-center text-sm text-slate-400 dark:text-slate-600">
-      Keep the <a href="/index.html" class="underline hover:text-rose-600 dark:hover:text-rose-400">defender dashboard</a> open in another tab to watch it update live.
-    </p>
+      <section id="theater" class="corner-cut relative min-h-[29rem] overflow-hidden border border-amber-200/15 bg-[#0b0c08]/95 shadow-[0_25px_90px_rgba(0,0,0,.55)]">
+        <div class="absolute inset-x-0 top-0 h-1 hazard-stripe opacity-80"></div>
+        <div class="pointer-events-none absolute inset-0 honey-grid opacity-50" aria-hidden="true"></div>
+        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(245,184,66,.07),transparent_45%)]" aria-hidden="true"></div>
+
+        <div class="relative flex items-center justify-between border-b border-amber-200/10 bg-black/20 px-4 py-3 sm:px-6">
+          <div class="flex items-center gap-3">
+            <span class="flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-[.2em] text-red-300">
+              <span class="h-1.5 w-1.5 rounded-full bg-red-400 shadow-[0_0_10px_rgba(248,113,113,.8)]"></span>
+              Recording
+            </span>
+            <span class="h-3 w-px bg-amber-200/10"></span>
+            <span id="scenario-clock" class="font-mono text-[9px] text-stone-600">00:00.0</span>
+          </div>
+          <span id="scene-counter" class="font-mono text-[9px] font-bold uppercase tracking-[.2em] text-amber-300/50">Scene 0 / 3</span>
+        </div>
+
+        <div id="simulation-field" class="relative min-h-[23rem] px-3 pb-8 pt-9 sm:px-8 sm:pt-12">
+          <div class="pointer-events-none absolute left-[17%] right-[17%] top-[9.2rem] hidden h-px bg-gradient-to-r from-red-400/35 via-amber-300/45 to-emerald-400/35 sm:block" aria-hidden="true">
+            <span class="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-amber-300"></span>
+          </div>
+
+          <div class="relative z-10 grid grid-cols-3 items-start gap-2 sm:gap-8">
+            <article id="attacker-node" class="text-center transition duration-300">
+              <div class="relative mx-auto h-24 w-24 sm:h-32 sm:w-32">
+                <div class="absolute inset-0 rounded-full border border-red-400/10"></div>
+                <div class="absolute inset-2 rounded-full border border-dashed border-red-400/20 radar-sweep"></div>
+                <div id="attacker-core" class="hexagon absolute inset-4 flex items-center justify-center border border-red-400/30 bg-red-950/70 text-red-300 shadow-[0_0_24px_rgba(248,113,113,.12)] transition duration-300 sm:inset-5">
+                  <svg aria-hidden="true" class="h-8 w-8 sm:h-11 sm:w-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="8" r="3.5" />
+                    <path stroke-linecap="round" d="M5.5 20a6.5 6.5 0 0 1 13 0M8.5 8h7" />
+                  </svg>
+                </div>
+                <div id="blocked-stamp" class="stamp-in pointer-events-none absolute -inset-x-5 top-10 hidden rotate-[-8deg] border-4 border-red-400 bg-[#0b0c08]/90 px-2 py-1 font-mono text-sm font-black uppercase tracking-[.16em] text-red-400 sm:text-lg">
+                  Blocked
+                </div>
+              </div>
+              <p class="mt-3 font-mono text-[9px] font-bold uppercase tracking-[.2em] text-red-300">Attacker</p>
+              <p id="attacker-ip-label" class="mt-1 truncate font-mono text-[9px] text-stone-500 sm:text-xs">203.0.113.42</p>
+            </article>
+
+            <article id="guard-node" class="text-center transition duration-300">
+              <div class="relative mx-auto h-24 w-24 sm:h-32 sm:w-32">
+                <div class="absolute inset-0 rounded-full border border-amber-300/10"></div>
+                <div class="absolute inset-2 rounded-full border border-dashed border-amber-300/25 radar-sweep"></div>
+                <div id="guard-core" class="hexagon shield-breathe absolute inset-3 flex items-center justify-center bg-amber-300 text-black transition duration-300 sm:inset-4">
+                  <svg aria-hidden="true" class="h-9 w-9 sm:h-12 sm:w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.8 4.4 6v5.6c0 4.7 3.1 8 7.6 9.6 4.5-1.6 7.6-4.9 7.6-9.6V6L12 2.8Z" />
+                    <path id="guard-icon-path" stroke-linecap="round" stroke-linejoin="round" d="M8.7 12.2 11 14.5l4.7-5" />
+                  </svg>
+                </div>
+              </div>
+              <p class="mt-3 font-mono text-[9px] font-bold uppercase tracking-[.2em] text-amber-300">HoneyGuard</p>
+              <p id="guard-state-label" class="mt-1 font-mono text-[9px] text-stone-500 sm:text-xs">Inspecting traffic</p>
+            </article>
+
+            <article id="api-node" class="text-center transition duration-300">
+              <div class="relative mx-auto h-24 w-24 sm:h-32 sm:w-32">
+                <div class="absolute inset-0 rounded-full border border-emerald-400/10"></div>
+                <div class="absolute inset-2 rounded-full border border-dashed border-emerald-400/20"></div>
+                <div id="api-core" class="hexagon absolute inset-4 flex items-center justify-center border border-emerald-400/25 bg-emerald-950/60 text-emerald-300 shadow-[0_0_24px_rgba(52,211,153,.1)] transition duration-300 sm:inset-5">
+                  <svg aria-hidden="true" class="h-8 w-8 sm:h-11 sm:w-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <ellipse cx="12" cy="6" rx="7" ry="3" />
+                    <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
+                  </svg>
+                </div>
+              </div>
+              <p class="mt-3 font-mono text-[9px] font-bold uppercase tracking-[.2em] text-emerald-300">Protected API</p>
+              <p id="api-state-label" class="mt-1 font-mono text-[9px] text-stone-500 sm:text-xs">Online</p>
+            </article>
+          </div>
+
+          <div id="trap-node" class="absolute bottom-5 left-1/2 z-10 -translate-x-1/2 border border-amber-300/15 bg-black/50 px-4 py-2 text-center opacity-45 transition duration-300">
+            <p class="font-mono text-[8px] font-bold uppercase tracking-[.22em] text-amber-300/70">Hidden decoy</p>
+            <p id="trap-path-label" class="mt-1 font-mono text-[10px] text-stone-500">/.env</p>
+          </div>
+
+          <div id="packet-layer" class="pointer-events-none absolute inset-0 z-20" aria-hidden="true"></div>
+
+          <div id="scene-status" aria-live="polite" class="absolute inset-x-3 bottom-20 z-20 text-center sm:inset-x-8">
+            <div class="mx-auto inline-flex max-w-full items-center gap-3 border border-stone-800 bg-black/80 px-4 py-2 backdrop-blur">
+              <span id="scene-status-code" class="font-mono text-[10px] font-black uppercase tracking-[.16em] text-stone-500">Ready</span>
+              <span class="h-3 w-px bg-stone-800"></span>
+              <span id="scene-status-text" class="truncate font-mono text-[9px] text-stone-600 sm:text-[11px]">Press start to launch the attack</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="relative mt-5" aria-label="Attack progress">
+        <div class="absolute left-[16.67%] right-[16.67%] top-5 h-px bg-stone-800">
+          <div id="progress-line" class="h-full w-0 bg-gradient-to-r from-amber-300 to-red-400 transition-[width] duration-500"></div>
+        </div>
+        <ol id="stepper-list" class="relative grid grid-cols-3 gap-2">
+          <li data-step="1" class="text-center">
+            <span data-step-dot class="relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-[#0b0c08] font-mono text-[10px] font-bold text-stone-600 transition duration-300">01</span>
+            <p data-step-title class="mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-stone-600 transition sm:text-xs">Request allowed</p>
+            <p class="mt-1 hidden font-mono text-[9px] text-stone-700 sm:block">200 / products</p>
+          </li>
+          <li data-step="2" class="text-center">
+            <span data-step-dot class="relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-[#0b0c08] font-mono text-[10px] font-bold text-stone-600 transition duration-300">02</span>
+            <p data-step-title class="mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-stone-600 transition sm:text-xs">Trap triggered</p>
+            <p class="mt-1 hidden font-mono text-[9px] text-stone-700 sm:block">404 / hidden decoy</p>
+          </li>
+          <li data-step="3" class="text-center">
+            <span data-step-dot class="relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-[#0b0c08] font-mono text-[10px] font-bold text-stone-600 transition duration-300">03</span>
+            <p data-step-title class="mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-stone-600 transition sm:text-xs">Attacker blocked</p>
+            <p class="mt-1 hidden font-mono text-[9px] text-stone-700 sm:block">403 / stopped at edge</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="mt-7 grid gap-3 lg:grid-cols-[1fr_auto]">
+        <button
+          id="run-sequence-button"
+          type="button"
+          class="group corner-cut relative overflow-hidden bg-amber-300 px-6 py-4 text-left text-black shadow-[0_0_35px_rgba(245,184,66,.18)] transition hover:bg-amber-200 hover:shadow-[0_0_48px_rgba(245,184,66,.3)] focus:outline-none focus:ring-2 focus:ring-amber-100 disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          <span class="relative flex items-center justify-between gap-4">
+            <span>
+              <span id="run-button-label" class="block text-sm font-black uppercase tracking-[.12em]">Start 3-step attack</span>
+              <span class="mt-1 block font-mono text-[9px] uppercase tracking-[.16em] text-black/55">Automatic · approximately 8 seconds</span>
+            </span>
+            <svg aria-hidden="true" class="h-7 w-7 transition group-hover:translate-x-1" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 4v16l13-8L7 4Z" />
+            </svg>
+          </span>
+        </button>
+
+        <div class="corner-cut flex items-center gap-3 border border-amber-200/15 bg-black/25 px-4 py-3">
+          <label for="attacker-ip-input" class="font-mono text-[9px] font-bold uppercase tracking-[.18em] text-stone-600">Attacker IP</label>
+          <input
+            id="attacker-ip-input"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            spellcheck="false"
+            aria-describedby="attacker-ip-error"
+            class="w-36 border-b border-amber-300/20 bg-transparent px-1 py-1 font-mono text-xs font-bold text-amber-200 outline-none transition focus:border-amber-300"
+            value="203.0.113.42"
+          />
+          <button
+            id="randomize-ip-button"
+            type="button"
+            aria-label="Generate a random simulated IP"
+            class="text-stone-600 transition hover:text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300"
+          >
+            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+            </svg>
+          </button>
+        </div>
+      </section>
+      <p id="attacker-ip-error" class="mt-2 hidden text-right font-mono text-[10px] text-red-400">Enter a valid IPv4 address, for example 203.0.113.42</p>
+
+      <div id="completion-panel" class="stamp-in mt-6 hidden items-center justify-between gap-4 border-2 border-emerald-400 bg-emerald-400/5 px-5 py-4">
+        <div class="flex items-center gap-4">
+          <span class="hexagon flex h-12 w-12 shrink-0 items-center justify-center bg-emerald-400 text-black">
+            <svg aria-hidden="true" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6" />
+            </svg>
+          </span>
+          <div>
+            <p class="text-base font-black uppercase tracking-[.12em] text-emerald-300">Threat contained</p>
+            <p class="mt-1 font-mono text-[10px] text-emerald-300/55">The incident was streamed to the Defense Center in real time.</p>
+          </div>
+        </div>
+        <a href="/" class="shrink-0 border-b border-emerald-400/40 pb-1 text-xs font-bold uppercase tracking-[.12em] text-emerald-300 hover:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+          See the alert →
+        </a>
+      </div>
+
+      <details class="group mt-8 border-t border-amber-200/10 pt-5">
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-300">
+          <span class="flex items-center gap-3">
+            <span class="font-mono text-[10px] font-bold uppercase tracking-[.22em] text-amber-300/70">Operator console</span>
+            <span class="hidden font-mono text-[9px] text-stone-700 sm:inline">Manual method + exact API path</span>
+          </span>
+          <span class="flex h-8 w-8 items-center justify-center border border-amber-200/10 text-stone-500 transition group-open:rotate-45 group-open:text-amber-300">
+            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
+        </summary>
+
+        <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_22rem]">
+          <section class="corner-cut border border-amber-200/10 bg-black/30 p-4 sm:p-5">
+            <div class="flex flex-col gap-3 sm:flex-row">
+              <label for="request-method" class="sr-only">HTTP method</label>
+              <select id="request-method" class="border border-amber-200/15 bg-[#0e0f0a] px-3 py-3 font-mono text-xs font-bold text-amber-300 outline-none focus:border-amber-300">
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+                <option>PATCH</option>
+                <option>DELETE</option>
+              </select>
+              <label for="request-path" class="sr-only">Exact API path</label>
+              <input
+                id="request-path"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                class="min-w-0 flex-1 border border-amber-200/15 bg-[#0e0f0a] px-3 py-3 font-mono text-xs text-stone-200 outline-none placeholder:text-stone-700 focus:border-amber-300"
+                value="/api/v1/products"
+                placeholder="/api/v1/products"
+              />
+              <button id="send-request-button" type="button" class="corner-cut bg-amber-300 px-5 py-3 text-xs font-black uppercase tracking-[.12em] text-black hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-100 disabled:opacity-50">
+                Send request
+              </button>
+            </div>
+            <p id="request-path-error" class="mt-2 hidden font-mono text-[10px] text-red-400">Use a same-origin path beginning with one slash</p>
+
+            <div id="quick-request-list" class="mt-4 flex flex-wrap gap-2">
+              <button type="button" data-method="GET" data-path="/api/v1/products" class="border border-emerald-400/15 bg-emerald-400/5 px-3 py-2 font-mono text-[10px] text-emerald-300 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-300">GET /products</button>
+              <button type="button" data-method="GET" data-path="/.env" class="border border-amber-300/15 bg-amber-300/5 px-3 py-2 font-mono text-[10px] text-amber-300 hover:bg-amber-300/10 focus:outline-none focus:ring-2 focus:ring-amber-300">GET /.env</button>
+              <button type="button" data-method="GET" data-path="/api/v1/admin/config" class="border border-red-400/15 bg-red-400/5 px-3 py-2 font-mono text-[10px] text-red-300 hover:bg-red-400/10 focus:outline-none focus:ring-2 focus:ring-red-300">GET /admin/config</button>
+              <button id="reset-bans-button" type="button" class="ml-auto border border-stone-700 px-3 py-2 font-mono text-[10px] text-stone-500 hover:border-stone-500 hover:text-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-400">CLEAR BANS</button>
+            </div>
+          </section>
+
+          <section class="corner-cut border border-amber-200/10 bg-[#050603] p-4">
+            <div class="flex items-center justify-between">
+              <p class="font-mono text-[9px] font-bold uppercase tracking-[.2em] text-stone-600">Response monitor</p>
+              <span id="request-status" class="font-mono text-[9px] font-bold text-stone-600">READY</span>
+            </div>
+            <p id="request-summary" class="mt-4 truncate font-mono text-[10px] text-stone-500">Waiting for manual request…</p>
+            <pre id="request-body" class="mt-3 max-h-20 overflow-auto whitespace-pre-wrap break-all font-mono text-[9px] leading-5 text-stone-700"></pre>
+          </section>
+        </div>
+      </details>
+    </main>
   </div>
+
+  <div id="toast" role="status" aria-live="polite" class="pointer-events-none fixed bottom-5 left-1/2 z-50 hidden -translate-x-1/2 border border-amber-300/25 bg-black/95 px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-[.14em] text-amber-200 shadow-2xl"></div>
 
   <script type="module">
     const DEMO_IP_HEADER_NAME = 'X-HoneyGuard-Demo-Ip'
+    const REQUEST_DELAY_MS = 650
+    const SCENE_HOLD_MS = 850
 
-    const attackerIpElement = document.getElementById('attacker-ip')
+    const theaterElement = document.getElementById('theater')
+    const simulationFieldElement = document.getElementById('simulation-field')
+    const packetLayerElement = document.getElementById('packet-layer')
+    const attackerCoreElement = document.getElementById('attacker-core')
+    const guardCoreElement = document.getElementById('guard-core')
+    const apiCoreElement = document.getElementById('api-core')
+    const trapNodeElement = document.getElementById('trap-node')
+    const blockedStampElement = document.getElementById('blocked-stamp')
+    const attackerIpInputElement = document.getElementById('attacker-ip-input')
+    const attackerIpErrorElement = document.getElementById('attacker-ip-error')
+    const attackerIpLabelElement = document.getElementById('attacker-ip-label')
+    const heroIpAddressElement = document.getElementById('hero-ip-address')
+    const heroRandomizeButtonElement = document.getElementById('hero-randomize-button')
+    const randomizeIpButtonElement = document.getElementById('randomize-ip-button')
     const runSequenceButtonElement = document.getElementById('run-sequence-button')
-    const stepListElement = document.getElementById('step-list')
-    const resultBannerElement = document.getElementById('result-banner')
+    const runButtonLabelElement = document.getElementById('run-button-label')
+    const guardStateLabelElement = document.getElementById('guard-state-label')
+    const apiStateLabelElement = document.getElementById('api-state-label')
+    const trapPathLabelElement = document.getElementById('trap-path-label')
+    const sceneStatusCodeElement = document.getElementById('scene-status-code')
+    const sceneStatusTextElement = document.getElementById('scene-status-text')
+    const sceneCounterElement = document.getElementById('scene-counter')
+    const scenarioClockElement = document.getElementById('scenario-clock')
+    const progressLineElement = document.getElementById('progress-line')
+    const completionPanelElement = document.getElementById('completion-panel')
     const demoModeWarningElement = document.getElementById('demo-mode-warning')
+    const requestMethodElement = document.getElementById('request-method')
+    const requestPathElement = document.getElementById('request-path')
+    const requestPathErrorElement = document.getElementById('request-path-error')
+    const sendRequestButtonElement = document.getElementById('send-request-button')
+    const quickRequestListElement = document.getElementById('quick-request-list')
+    const resetBansButtonElement = document.getElementById('reset-bans-button')
+    const requestStatusElement = document.getElementById('request-status')
+    const requestSummaryElement = document.getElementById('request-summary')
+    const requestBodyElement = document.getElementById('request-body')
+    const toastElement = document.getElementById('toast')
 
-    let attackerIpAddress = ''
-    let firstTrapPath = '/api/v1/admin/config'
-
-    const rollNewIdentity = () => {
-      // 203.0.113.0/24 is reserved by RFC 5737 for documentation/example use, so it
-      // reads as a believable public attacker IP without pointing at anyone real.
-      attackerIpAddress = `203.0.113.${Math.floor(Math.random() * 200) + 10}`
-      attackerIpElement.textContent = attackerIpAddress
-    }
+    let firstTrapPath = '/.env'
+    let scenarioStartTime = 0
+    let scenarioClockInterval
+    let toastTimeout
 
     const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
-    const probe = (path) => fetch(path, {
-      headers: { [DEMO_IP_HEADER_NAME]: attackerIpAddress },
-    })
+    const createRandomIpAddress = () => `203.0.113.${Math.floor(Math.random() * 200) + 10}`
 
-    const outcomeStyles = {
-      200: { text: '200 allowed', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-      404: { text: '404 hidden trap', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
-      403: { text: '403 blocked', className: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400' },
+    const isValidIpv4Address = (value) => {
+      const octets = value.split('.')
+      if (octets.length !== 4) return false
+      return octets.every((octet) => {
+        if (!/^\d{1,3}$/.test(octet)) return false
+        const number = Number(octet)
+        return number >= 0 && number <= 255
+      })
     }
 
-    const setStepStatus = (stepNumber, status) => {
-      const stepElement = stepListElement.querySelector(`[data-step="${stepNumber}"]`)
-      const statusElement = stepElement.querySelector('[data-status]')
-      if (status === 'running') {
-        statusElement.textContent = 'running…'
-        statusElement.className = 'mt-0.5 shrink-0 animate-pulse rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-400'
-        return
-      }
-
-      const style = outcomeStyles[status] ?? { text: String(status), className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' }
-      statusElement.textContent = style.text
-      statusElement.className = `mt-0.5 shrink-0 step-in rounded-full px-2.5 py-1 text-xs font-semibold ${style.className}`
+    const getValidatedIpAddress = () => {
+      const ipAddress = attackerIpInputElement.value.trim()
+      const isValid = isValidIpv4Address(ipAddress)
+      attackerIpErrorElement.classList.toggle('hidden', isValid)
+      attackerIpInputElement.classList.toggle('border-red-400', !isValid)
+      if (!isValid) return null
+      return ipAddress
     }
 
-    const resetSteps = () => {
-      resultBannerElement.classList.add('hidden')
-      for (const stepElement of stepListElement.querySelectorAll('[data-status]')) {
-        stepElement.textContent = 'waiting'
-        stepElement.className = 'mt-0.5 shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+    const syncIpAddress = () => {
+      const value = attackerIpInputElement.value.trim()
+      heroIpAddressElement.textContent = value || '—'
+      attackerIpLabelElement.textContent = value || '—'
+    }
+
+    const handleRandomizeIp = () => {
+      attackerIpInputElement.value = createRandomIpAddress()
+      attackerIpErrorElement.classList.add('hidden')
+      attackerIpInputElement.classList.remove('border-red-400')
+      syncIpAddress()
+      showToast('New attacker identity generated')
+    }
+
+    const showToast = (message) => {
+      clearTimeout(toastTimeout)
+      toastElement.textContent = message
+      toastElement.classList.remove('hidden')
+      toastTimeout = setTimeout(() => toastElement.classList.add('hidden'), 2200)
+    }
+
+    const probe = (path, method = 'GET') => {
+      const ipAddress = getValidatedIpAddress()
+      if (!ipAddress) return null
+      return fetch(path, {
+        method,
+        headers: { [DEMO_IP_HEADER_NAME]: ipAddress },
+      })
+    }
+
+    const setSceneStatus = (code, text, tone = 'neutral') => {
+      const toneClasses = {
+        neutral: 'font-mono text-[10px] font-black uppercase tracking-[.16em] text-stone-500',
+        allowed: 'font-mono text-[10px] font-black uppercase tracking-[.16em] text-emerald-300',
+        trap: 'font-mono text-[10px] font-black uppercase tracking-[.16em] text-amber-300',
+        blocked: 'font-mono text-[10px] font-black uppercase tracking-[.16em] text-red-400',
       }
+      sceneStatusCodeElement.textContent = code
+      sceneStatusCodeElement.className = toneClasses[tone] ?? toneClasses.neutral
+      sceneStatusTextElement.textContent = text
+    }
+
+    const setStepState = (stepNumber, state) => {
+      const stepElement = document.querySelector(`[data-step="${stepNumber}"]`)
+      const dotElement = stepElement.querySelector('[data-step-dot]')
+      const titleElement = stepElement.querySelector('[data-step-title]')
+
+      const styles = {
+        idle: {
+          dot: 'relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-[#0b0c08] font-mono text-[10px] font-bold text-stone-600 transition duration-300',
+          title: 'mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-stone-600 transition sm:text-xs',
+        },
+        active: {
+          dot: 'relative mx-auto flex h-10 w-10 animate-pulse items-center justify-center rounded-full border border-amber-300 bg-amber-300/10 font-mono text-[10px] font-bold text-amber-200 shadow-[0_0_22px_rgba(245,184,66,.28)] transition duration-300',
+          title: 'mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-amber-200 transition sm:text-xs',
+        },
+        complete: {
+          dot: 'relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400 bg-emerald-400 font-mono text-[10px] font-black text-black shadow-[0_0_18px_rgba(52,211,153,.2)] transition duration-300',
+          title: 'mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-emerald-300 transition sm:text-xs',
+        },
+        blocked: {
+          dot: 'relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-red-400 bg-red-400 font-mono text-[10px] font-black text-black shadow-[0_0_22px_rgba(248,113,113,.3)] transition duration-300',
+          title: 'mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-red-400 transition sm:text-xs',
+        },
+      }
+
+      const style = styles[state] ?? styles.idle
+      dotElement.className = style.dot
+      titleElement.className = style.title
+    }
+
+    const resetVisualState = () => {
+      packetLayerElement.innerHTML = ''
+      completionPanelElement.classList.add('hidden')
+      completionPanelElement.classList.remove('flex')
+      blockedStampElement.classList.add('hidden')
+      attackerCoreElement.className = 'hexagon absolute inset-4 flex items-center justify-center border border-red-400/30 bg-red-950/70 text-red-300 shadow-[0_0_24px_rgba(248,113,113,.12)] transition duration-300 sm:inset-5'
+      guardCoreElement.className = 'hexagon shield-breathe absolute inset-3 flex items-center justify-center bg-amber-300 text-black transition duration-300 sm:inset-4'
+      apiCoreElement.className = 'hexagon absolute inset-4 flex items-center justify-center border border-emerald-400/25 bg-emerald-950/60 text-emerald-300 shadow-[0_0_24px_rgba(52,211,153,.1)] transition duration-300 sm:inset-5'
+      trapNodeElement.className = 'absolute bottom-5 left-1/2 z-10 -translate-x-1/2 border border-amber-300/15 bg-black/50 px-4 py-2 text-center opacity-45 transition duration-300'
+      guardStateLabelElement.textContent = 'Inspecting traffic'
+      apiStateLabelElement.textContent = 'Online'
+      progressLineElement.style.width = '0%'
+      sceneCounterElement.textContent = 'Scene 0 / 3'
+      setSceneStatus('Ready', 'Press start to launch the attack')
+      for (let step = 1; step <= 3; step += 1) setStepState(step, 'idle')
+    }
+
+    const startScenarioClock = () => {
+      scenarioStartTime = performance.now()
+      clearInterval(scenarioClockInterval)
+      scenarioClockInterval = setInterval(() => {
+        const elapsedSeconds = (performance.now() - scenarioStartTime) / 1000
+        scenarioClockElement.textContent = `00:${elapsedSeconds.toFixed(1).padStart(4, '0')}`
+      }, 100)
+    }
+
+    const stopScenarioClock = () => {
+      clearInterval(scenarioClockInterval)
+    }
+
+    const animatePacket = async ({ startX, startY, endX, endY, color }) => {
+      const packetElement = document.createElement('span')
+      packetElement.className = 'absolute h-3 w-3 rounded-full'
+      packetElement.style.left = `${startX}%`
+      packetElement.style.top = `${startY}%`
+      packetElement.style.backgroundColor = color
+      packetElement.style.boxShadow = `0 0 22px ${color}, 0 0 5px ${color}`
+      packetElement.style.transform = 'translate(-50%, -50%)'
+      packetLayerElement.appendChild(packetElement)
+
+      const animation = packetElement.animate(
+        [
+          { left: `${startX}%`, top: `${startY}%`, opacity: 0, transform: 'translate(-50%, -50%) scale(.45)' },
+          { opacity: 1, offset: .12, transform: 'translate(-50%, -50%) scale(1)' },
+          { left: `${endX}%`, top: `${endY}%`, opacity: 1, transform: 'translate(-50%, -50%) scale(1)' },
+        ],
+        { duration: REQUEST_DELAY_MS, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'forwards' },
+      )
+
+      // Chromium can leave Animation.finished pending when the tab is backgrounded.
+      // The theater uses a fixed timeline, so a deterministic timer keeps every scene
+      // moving in recordings and during browser automation.
+      await sleep(REQUEST_DELAY_MS + 40)
+      animation.cancel()
+      packetElement.remove()
+    }
+
+    const runAllowedScene = async (responseStatus) => {
+      sceneCounterElement.textContent = 'Scene 1 / 3'
+      setStepState(1, 'active')
+      setSceneStatus('Sending', 'Legitimate request enters the perimeter')
+      await animatePacket({ startX: 17, startY: 39, endX: 50, endY: 39, color: '#f5b842' })
+      guardCoreElement.className = 'hexagon absolute inset-3 flex items-center justify-center bg-white text-black shadow-[0_0_40px_rgba(255,255,255,.45)] transition duration-300 sm:inset-4'
+      guardStateLabelElement.textContent = 'Request trusted'
+      await sleep(250)
+      await animatePacket({ startX: 50, startY: 39, endX: 83, endY: 39, color: '#4ade80' })
+      apiCoreElement.className = 'hexagon absolute inset-4 flex items-center justify-center border border-emerald-300 bg-emerald-400 text-black shadow-[0_0_42px_rgba(52,211,153,.4)] transition duration-300 sm:inset-5'
+      apiStateLabelElement.textContent = 'Request received'
+      setSceneStatus(`${responseStatus} Allowed`, 'Normal traffic reaches the protected API', 'allowed')
+      setStepState(1, 'complete')
+      progressLineElement.style.width = '0%'
+      await sleep(SCENE_HOLD_MS)
+    }
+
+    const runTrapScene = async (responseStatus) => {
+      sceneCounterElement.textContent = 'Scene 2 / 3'
+      setStepState(2, 'active')
+      guardCoreElement.className = 'hexagon shield-breathe absolute inset-3 flex items-center justify-center bg-amber-300 text-black transition duration-300 sm:inset-4'
+      apiCoreElement.className = 'hexagon absolute inset-4 flex items-center justify-center border border-emerald-400/25 bg-emerald-950/60 text-emerald-300 shadow-[0_0_24px_rgba(52,211,153,.1)] transition duration-300 sm:inset-5'
+      apiStateLabelElement.textContent = 'Never reached'
+      setSceneStatus('Probing', `Scanner requests hidden route ${firstTrapPath}`)
+      await animatePacket({ startX: 17, startY: 39, endX: 50, endY: 82, color: '#fbbf24' })
+      trapNodeElement.className = 'trap-flash absolute bottom-5 left-1/2 z-10 -translate-x-1/2 border border-amber-300 bg-amber-300/15 px-4 py-2 text-center opacity-100 transition duration-300'
+      guardCoreElement.className = 'hexagon absolute inset-3 flex items-center justify-center bg-amber-300 text-black shadow-[0_0_52px_rgba(245,184,66,.55)] transition duration-300 sm:inset-4'
+      guardStateLabelElement.textContent = 'Identity flagged'
+      setSceneStatus(`${responseStatus} Decoy`, 'The route looks missing — the IP is now banned', 'trap')
+      setStepState(2, 'complete')
+      progressLineElement.style.width = '50%'
+      await sleep(SCENE_HOLD_MS + 250)
+    }
+
+    const runBlockedScene = async (responseStatus) => {
+      sceneCounterElement.textContent = 'Scene 3 / 3'
+      setStepState(3, 'active')
+      trapNodeElement.className = 'absolute bottom-5 left-1/2 z-10 -translate-x-1/2 border border-amber-300/15 bg-black/50 px-4 py-2 text-center opacity-45 transition duration-300'
+      setSceneStatus('Retrying', 'The flagged attacker tries the legitimate API again')
+      await animatePacket({ startX: 17, startY: 39, endX: 49, endY: 39, color: '#f87171' })
+      theaterElement.classList.add('alert-shake')
+      setTimeout(() => theaterElement.classList.remove('alert-shake'), 500)
+      guardCoreElement.className = 'hexagon absolute inset-3 flex items-center justify-center bg-red-400 text-black shadow-[0_0_62px_rgba(248,113,113,.6)] transition duration-300 sm:inset-4'
+      guardStateLabelElement.textContent = 'Access denied'
+      apiCoreElement.className = 'hexagon absolute inset-4 flex items-center justify-center border border-stone-800 bg-stone-950 text-stone-700 opacity-45 transition duration-300 sm:inset-5'
+      apiStateLabelElement.textContent = 'Protected'
+      attackerCoreElement.className = 'hexagon absolute inset-4 flex items-center justify-center border border-red-400 bg-red-950 text-red-400 opacity-45 transition duration-300 sm:inset-5'
+      blockedStampElement.classList.remove('hidden')
+      setSceneStatus(`${responseStatus} Blocked`, 'HoneyGuard stops the request before app code runs', 'blocked')
+      setStepState(3, 'blocked')
+      progressLineElement.style.width = '100%'
+      await sleep(SCENE_HOLD_MS + 350)
     }
 
     const handleRunSequence = async () => {
+      if (!getValidatedIpAddress()) {
+        attackerIpInputElement.focus()
+        return
+      }
+
+      syncIpAddress()
       runSequenceButtonElement.disabled = true
-      resetSteps()
+      sendRequestButtonElement.disabled = true
+      runButtonLabelElement.textContent = 'Simulation running'
+      resetVisualState()
+      startScenarioClock()
 
-      // A fresh identity on every run means replaying the demo is always one click -
-      // no separate "new identity" step to remember.
-      rollNewIdentity()
-      await fetch('/api/dashboard/reset', { method: 'POST' })
+      try {
+        await fetch('/api/dashboard/reset', { method: 'POST' })
 
-      setStepStatus(1, 'running')
-      const normalResponse = await probe('/api/v1/products')
-      setStepStatus(1, normalResponse.status)
-      await sleep(600)
+        const normalResponse = await probe('/api/v1/products')
+        if (!normalResponse) return
+        await runAllowedScene(normalResponse.status)
 
-      setStepStatus(2, 'running')
-      const trapResponse = await probe(firstTrapPath)
-      setStepStatus(2, trapResponse.status)
-      await sleep(600)
+        const trapResponse = await probe(firstTrapPath)
+        if (!trapResponse) return
+        await runTrapScene(trapResponse.status)
 
-      setStepStatus(3, 'running')
-      const blockedResponse = await probe('/api/v1/products')
-      setStepStatus(3, blockedResponse.status)
+        const blockedResponse = await probe('/api/v1/products')
+        if (!blockedResponse) return
+        await runBlockedScene(blockedResponse.status)
 
-      resultBannerElement.classList.remove('hidden')
-      resultBannerElement.classList.add('flex')
-      runSequenceButtonElement.disabled = false
+        completionPanelElement.classList.remove('hidden')
+        completionPanelElement.classList.add('flex')
+        runButtonLabelElement.textContent = 'Replay 3-step attack'
+      } catch (error) {
+        setSceneStatus('Connection failed', error instanceof Error ? error.message : 'Unable to reach the server', 'blocked')
+        runButtonLabelElement.textContent = 'Retry 3-step attack'
+      } finally {
+        stopScenarioClock()
+        runSequenceButtonElement.disabled = false
+        sendRequestButtonElement.disabled = false
+      }
     }
 
-    const startAttackerConsole = async () => {
-      rollNewIdentity()
+    const getManualStatusTone = (status) => {
+      if (status >= 200 && status < 300) return { label: `${status} ALLOWED`, className: 'font-mono text-[9px] font-bold text-emerald-300' }
+      if (status === 403) return { label: '403 BLOCKED', className: 'font-mono text-[9px] font-bold text-red-400' }
+      if (status === 404) return { label: '404 DECOY', className: 'font-mono text-[9px] font-bold text-amber-300' }
+      return { label: `${status} RESPONSE`, className: 'font-mono text-[9px] font-bold text-stone-300' }
+    }
 
-      const configResponse = await fetch('/api/dashboard/config')
-      const config = await configResponse.json()
-      firstTrapPath = config.trapPaths?.[0] ?? firstTrapPath
+    const sendManualRequest = async () => {
+      const method = requestMethodElement.value
+      const path = requestPathElement.value.trim()
+      const validPath = path.startsWith('/') && !path.startsWith('//')
 
-      if (!config.demoMode) {
+      requestPathErrorElement.classList.toggle('hidden', validPath)
+      if (!validPath) {
+        requestPathElement.focus()
+        return
+      }
+
+      if (!getValidatedIpAddress()) {
+        attackerIpInputElement.focus()
+        return
+      }
+
+      sendRequestButtonElement.disabled = true
+      requestStatusElement.textContent = 'SENDING'
+      requestStatusElement.className = 'animate-pulse font-mono text-[9px] font-bold text-amber-300'
+      requestSummaryElement.textContent = `${method} ${path} · ${attackerIpInputElement.value.trim()}`
+      requestBodyElement.textContent = ''
+
+      try {
+        const response = await probe(path, method)
+        const responseBody = await response.text()
+        const tone = getManualStatusTone(response.status)
+        requestStatusElement.textContent = tone.label
+        requestStatusElement.className = tone.className
+        requestBodyElement.textContent = responseBody || '(empty response body)'
+      } catch (error) {
+        requestStatusElement.textContent = 'FAILED'
+        requestStatusElement.className = 'font-mono text-[9px] font-bold text-red-400'
+        requestBodyElement.textContent = error instanceof Error ? error.message : 'Request failed'
+      } finally {
+        sendRequestButtonElement.disabled = false
+      }
+    }
+
+    const handleQuickRequest = (event) => {
+      const buttonElement = event.target.closest('[data-method][data-path]')
+      if (!buttonElement) return
+      requestMethodElement.value = buttonElement.dataset.method
+      requestPathElement.value = buttonElement.dataset.path
+      sendManualRequest()
+    }
+
+    const handleResetBans = async () => {
+      resetBansButtonElement.disabled = true
+      const response = await fetch('/api/dashboard/reset', { method: 'POST' })
+      showToast(response.ok ? 'Active bans cleared' : 'Reset unavailable')
+      resetBansButtonElement.disabled = false
+    }
+
+    const startThreatTheater = async () => {
+      attackerIpInputElement.value = createRandomIpAddress()
+      syncIpAddress()
+      resetVisualState()
+
+      try {
+        const configResponse = await fetch('/api/dashboard/config')
+        if (!configResponse.ok) throw new Error('Configuration unavailable')
+        const config = await configResponse.json()
+        firstTrapPath = config.trapPaths?.[0] ?? firstTrapPath
+        trapPathLabelElement.textContent = firstTrapPath
+        if (!config.demoMode) demoModeWarningElement.classList.remove('hidden')
+      } catch (error) {
+        demoModeWarningElement.textContent = error instanceof Error ? error.message : 'Attack Lab configuration failed'
         demoModeWarningElement.classList.remove('hidden')
       }
 
       runSequenceButtonElement.addEventListener('click', handleRunSequence)
+      randomizeIpButtonElement.addEventListener('click', handleRandomizeIp)
+      heroRandomizeButtonElement.addEventListener('click', handleRandomizeIp)
+      attackerIpInputElement.addEventListener('input', () => {
+        attackerIpErrorElement.classList.add('hidden')
+        attackerIpInputElement.classList.remove('border-red-400')
+        syncIpAddress()
+      })
+      sendRequestButtonElement.addEventListener('click', sendManualRequest)
+      requestPathElement.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') sendManualRequest()
+      })
+      quickRequestListElement.addEventListener('click', handleQuickRequest)
+      resetBansButtonElement.addEventListener('click', handleResetBans)
     }
 
-    startAttackerConsole()
+    startThreatTheater()
   </script>
 </body>
 </html>
