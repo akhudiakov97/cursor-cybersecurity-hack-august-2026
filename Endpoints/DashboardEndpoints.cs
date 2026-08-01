@@ -26,17 +26,24 @@ public static class DashboardEndpoints
             {
                 supabaseUrl = settings.SupabaseUrl,
                 supabaseAnonKey = settings.SupabaseAnonKey,
+                trapPaths = settings.TrapPaths,
+                demoMode = settings.DemoMode,
             });
         })
         .WithName("GetDashboardConfig");
 
-        // Lets the "Reset Demo" button on the dashboard clear every in-memory ban so the
-        // three-step attack story (200 -> 404 -> 403) can be replayed without restarting
-        // the whole application. Restricted to Development so this can never be used to
-        // un-ban a real attacker in production.
-        app.MapPost("/api/dashboard/reset", (BanRegistry banRegistry, IWebHostEnvironment environment) =>
+        // Lets the "Reset Demo" button on the dashboard (and the attacker page) clear
+        // every in-memory ban so the three-step attack story (200 -> 404 -> 403) can be
+        // replayed without restarting the whole application. Allowed in Development, or
+        // whenever DemoMode is deliberately turned on for a hosted demo deployment - both
+        // are opt-in, so this can never be used to un-ban a real attacker in a real
+        // production deployment.
+        app.MapPost("/api/dashboard/reset", (
+            BanRegistry banRegistry,
+            IWebHostEnvironment environment,
+            IOptions<HoneyGuardOptions> options) =>
         {
-            if (!environment.IsDevelopment())
+            if (!environment.IsDevelopment() && !options.Value.DemoMode)
             {
                 return Results.NotFound();
             }

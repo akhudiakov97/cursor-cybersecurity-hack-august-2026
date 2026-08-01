@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>honeyguard :: attacker console</title>
+  <!-- Render-blocking and loaded before Tailwind so the .dark class lands on <html>
+       before first paint - avoids a flash of the wrong theme. -->
+  <script src="/theme.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="icon" href="data:," />
+  <style type="text/tailwindcss">
+    @custom-variant dark (&:where(.dark, .dark *));
+  </style>
+  <style>
+    @keyframes blink { 50% { opacity: 0; } }
+    .cursor-blink { animation: blink 1s step-start infinite; }
+
+    :root { --scanline-opacity: 0.05; }
+    .dark { --scanline-opacity: 0.025; }
+
+    .crt-scanlines {
+      background-image: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, var(--scanline-opacity)) 0px,
+        rgba(0, 0, 0, var(--scanline-opacity)) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+    }
+    .dark .crt-scanlines {
+      background-image: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, var(--scanline-opacity)) 0px,
+        rgba(255, 255, 255, var(--scanline-opacity)) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+    }
+
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .row-in { animation: rowIn 150ms ease-out; }
+  </style>
+</head>
+<body class="crt-scanlines min-h-screen bg-amber-50 font-mono text-[13px] leading-relaxed text-red-900 selection:bg-red-700 selection:text-amber-50 dark:bg-black dark:text-red-400 dark:selection:bg-red-400 dark:selection:text-black">
+  <div class="mx-auto max-w-4xl px-5 py-6">
+    <!-- Terminal chrome, same shape as the dashboard's but red/amber-accented to read
+         as "the other side of the glass". -->
+    <div class="border border-red-700/60 bg-white dark:border-red-900 dark:bg-neutral-950">
+      <div class="flex items-center justify-between border-b border-red-700/60 bg-red-50/60 px-3 py-1.5 dark:border-red-900 dark:bg-neutral-900/60">
+        <div class="flex items-center gap-1.5">
+          <span class="h-2.5 w-2.5 rounded-full bg-red-500/70"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-yellow-500/70"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-green-500/70"></span>
+          <span class="ml-3 text-neutral-500">anon@unknown:~# nmap --script vuln target</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button
+            id="theme-toggle-button"
+            type="button"
+            tabindex="0"
+            aria-label="Toggle light and dark theme"
+            onclick="handleThemeToggle()"
+            onkeydown="if (event.key === 'Enter' || event.key === ' ') handleThemeToggle()"
+            class="border border-red-700/60 px-2 py-0.5 text-[11px] uppercase tracking-widest text-red-800 hover:border-red-600 hover:bg-red-100 focus:outline-none focus:ring-1 focus:ring-red-600 dark:border-red-900 dark:text-red-500 dark:hover:border-red-500 dark:hover:bg-red-950/40 dark:focus:ring-red-500"
+          ><span class="dark:hidden">[ dark ]</span><span class="hidden dark:inline">[ light ]</span></button>
+          <a
+            href="/index.html"
+            tabindex="0"
+            aria-label="Open the HoneyGuard defender dashboard"
+            class="border border-green-700/60 px-2 py-0.5 text-[11px] uppercase tracking-widest text-green-800 hover:border-green-600 hover:bg-green-100 focus:outline-none focus:ring-1 focus:ring-green-600 dark:border-green-900 dark:text-green-500 dark:hover:border-green-500 dark:hover:bg-green-950/40 dark:focus:ring-green-500"
+          >[ defender dashboard ]</a>
+        </div>
+      </div>
+
+      <div class="p-4">
+        <div class="mb-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-red-700/40 pb-3 dark:border-red-900/60">
+          <p class="text-neutral-600 dark:text-neutral-400">
+            attacker simulation console <span class="text-neutral-400 dark:text-neutral-700">//</span>
+            self-service end-to-end demo<span class="cursor-blink text-red-700 dark:text-red-400">_</span>
+          </p>
+          <p id="demo-mode-warning" class="hidden text-[11px] uppercase tracking-widest text-yellow-700 dark:text-yellow-500">
+            demo mode is off - requests will use your real IP
+          </p>
+        </div>
+
+        <!-- Identity bar: a browser can't set X-Forwarded-For itself (fetch forbids it),
+             so we simulate an attacker IP in a custom header instead - see
+             HoneyGuardOptions.DemoMode / DemoIpHeaderName on the server. -->
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3 border border-red-700/40 bg-red-50/40 px-4 py-3 dark:border-red-900/60 dark:bg-black/40">
+          <div>
+            <span class="text-neutral-500 dark:text-neutral-600">simulated attacker ip.. </span><span id="attacker-ip" class="font-bold text-yellow-600 dark:text-yellow-400">--</span>
+          </div>
+          <button
+            id="new-identity-button"
+            type="button"
+            tabindex="0"
+            aria-label="Roll a new simulated attacker IP address"
+            class="border border-red-700/60 px-2 py-1 text-[11px] uppercase tracking-widest text-red-800 hover:border-red-600 hover:bg-red-100 focus:outline-none focus:ring-1 focus:ring-red-600 dark:border-red-900 dark:text-red-500 dark:hover:border-red-500 dark:hover:bg-red-950/40 dark:focus:ring-red-500"
+          >[ new identity ]</button>
+        </div>
+
+        <!-- Scripted three-step story: a normal request, a trap probe, then the ban
+             taking effect - mirrors demo/attack.sh but driven entirely from the browser. -->
+        <div class="mb-4 border border-red-700/40 dark:border-red-900/60">
+          <div class="flex items-center justify-between border-b border-red-700/40 bg-red-50/60 px-3 py-1 text-neutral-500 dark:border-red-900/60 dark:bg-neutral-900/40 dark:text-neutral-500">
+            <span>run_attack_sequence.sh</span>
+            <button
+              id="run-sequence-button"
+              type="button"
+              tabindex="0"
+              aria-label="Run the three-step attack sequence"
+              class="border border-red-700/60 px-2 py-0.5 text-[11px] uppercase tracking-widest text-red-800 hover:border-red-600 hover:bg-red-100 focus:outline-none focus:ring-1 focus:ring-red-600 dark:border-red-900 dark:text-red-500 dark:hover:border-red-500 dark:hover:bg-red-950/40 dark:focus:ring-red-500"
+            >[ run attack sequence ]</button>
+          </div>
+          <ul id="sequence-log" class="min-h-[6rem] px-3 py-3">
+            <li class="text-neutral-500 dark:text-neutral-600"># press "run attack sequence" to simulate a probe against this app</li>
+          </ul>
+        </div>
+
+        <!-- Manual probe grid, built from the server's real trap list so it can never
+             drift out of sync with what actually trips a ban. -->
+        <div class="mb-4 border border-red-700/40 dark:border-red-900/60">
+          <div class="border-b border-red-700/40 bg-red-50/60 px-3 py-1 text-neutral-500 dark:border-red-900/60 dark:bg-neutral-900/40 dark:text-neutral-500">
+            manual probe // click a route to hit it directly
+          </div>
+          <div id="trap-grid" class="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2">
+            <span class="text-neutral-500 dark:text-neutral-600">loading trap routes...</span>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 border-t border-red-700/40 pt-3 dark:border-red-900/60">
+          <button
+            id="clear-bans-button"
+            type="button"
+            tabindex="0"
+            aria-label="Clear all active bans"
+            class="border border-red-700/60 px-2 py-1 text-[11px] uppercase tracking-widest text-red-800 hover:border-red-600 hover:bg-red-100 focus:outline-none focus:ring-1 focus:ring-red-600 dark:border-red-900 dark:text-red-500 dark:hover:border-red-500 dark:hover:bg-red-950/40 dark:focus:ring-red-500"
+          >[ clear bans ]</button>
+          <p class="text-[11px] text-neutral-500 dark:text-neutral-700">
+            keep this open next to the <a href="/index.html" class="underline hover:text-red-700 dark:hover:text-red-400">defender dashboard</a> to watch incidents land in real time.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const DEMO_IP_HEADER_NAME = 'X-HoneyGuard-Demo-Ip'
+
+    const attackerIpElement = document.getElementById('attacker-ip')
+    const newIdentityButtonElement = document.getElementById('new-identity-button')
+    const runSequenceButtonElement = document.getElementById('run-sequence-button')
+    const sequenceLogElement = document.getElementById('sequence-log')
+    const trapGridElement = document.getElementById('trap-grid')
+    const clearBansButtonElement = document.getElementById('clear-bans-button')
+    const demoModeWarningElement = document.getElementById('demo-mode-warning')
+
+    let attackerIpAddress = ''
+    let trapPaths = []
+
+    const rollNewIdentity = () => {
+      // 203.0.113.0/24 is reserved by RFC 5737 for documentation/example use, so it
+      // reads as a believable public attacker IP without pointing at anyone real.
+      attackerIpAddress = `203.0.113.${Math.floor(Math.random() * 200) + 10}`
+      attackerIpElement.textContent = attackerIpAddress
+    }
+
+    const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+    const probe = (path) => fetch(path, {
+      headers: { [DEMO_IP_HEADER_NAME]: attackerIpAddress },
+    })
+
+    const statusStyle = (status) => {
+      if (status === 200) return 'text-green-700 dark:text-green-400'
+      if (status === 403) return 'text-red-600 dark:text-red-500'
+      return 'text-yellow-600 dark:text-yellow-400'
+    }
+
+    const appendLogLine = (html) => {
+      const lineElement = document.createElement('li')
+      lineElement.className = 'row-in py-0.5'
+      lineElement.innerHTML = html
+      sequenceLogElement.appendChild(lineElement)
+      sequenceLogElement.scrollTop = sequenceLogElement.scrollHeight
+    }
+
+    const logRequest = (label, method, path, status) => `
+      <span class="text-neutral-500 dark:text-neutral-600">[${label}]</span>
+      <span class="text-neutral-500">${method}</span>
+      <span class="text-neutral-700 dark:text-neutral-300">${path}</span>
+      <span class="text-neutral-500 dark:text-neutral-600">-></span>
+      <span class="font-bold ${statusStyle(status)}">${status}</span>
+    `
+
+    const handleRunSequence = async () => {
+      runSequenceButtonElement.disabled = true
+      sequenceLogElement.innerHTML = ''
+
+      appendLogLine(`<span class="text-neutral-500 dark:text-neutral-600"># simulating attacker at ${attackerIpAddress}</span>`)
+
+      const normalResponse = await probe('/api/v1/products')
+      appendLogLine(logRequest('1', 'GET', '/api/v1/products', normalResponse.status))
+      await sleep(500)
+
+      const trapPath = trapPaths[0] ?? '/api/v1/admin/config'
+      const trapResponse = await probe(trapPath)
+      appendLogLine(logRequest('2', 'GET', trapPath, trapResponse.status))
+      await sleep(500)
+
+      const blockedResponse = await probe('/api/v1/products')
+      appendLogLine(logRequest('3', 'GET', '/api/v1/products', blockedResponse.status))
+
+      appendLogLine(`<span class="text-neutral-500 dark:text-neutral-600"># check the defender dashboard - the incident should already be there</span>`)
+      runSequenceButtonElement.disabled = false
+    }
+
+    const handleManualProbe = async (path, resultElement) => {
+      const response = await probe(path)
+      resultElement.textContent = String(response.status)
+      resultElement.className = `font-bold ${statusStyle(response.status)}`
+    }
+
+    const renderTrapGrid = () => {
+      trapGridElement.innerHTML = ''
+      for (const trapPath of trapPaths) {
+        const rowElement = document.createElement('div')
+        rowElement.className = 'flex items-center justify-between gap-2 border border-red-700/30 px-2 py-1 dark:border-red-900/40'
+
+        const buttonElement = document.createElement('button')
+        buttonElement.type = 'button'
+        buttonElement.tabIndex = 0
+        buttonElement.setAttribute('aria-label', `Probe ${trapPath}`)
+        buttonElement.className = 'truncate text-left text-neutral-700 hover:text-red-700 focus:outline-none focus:ring-1 focus:ring-red-600 dark:text-neutral-300 dark:hover:text-red-400 dark:focus:ring-red-500'
+        buttonElement.textContent = trapPath
+
+        const resultElement = document.createElement('span')
+        resultElement.className = 'font-bold text-neutral-400 dark:text-neutral-700'
+        resultElement.textContent = '--'
+
+        buttonElement.addEventListener('click', () => handleManualProbe(trapPath, resultElement))
+        rowElement.append(buttonElement, resultElement)
+        trapGridElement.appendChild(rowElement)
+      }
+    }
+
+    const startAttackerConsole = async () => {
+      rollNewIdentity()
+
+      const configResponse = await fetch('/api/dashboard/config')
+      const config = await configResponse.json()
+      trapPaths = config.trapPaths ?? []
+      renderTrapGrid()
+
+      if (!config.demoMode) {
+        demoModeWarningElement.classList.remove('hidden')
+      }
+
+      newIdentityButtonElement.addEventListener('click', rollNewIdentity)
+      runSequenceButtonElement.addEventListener('click', handleRunSequence)
+      clearBansButtonElement.addEventListener('click', async () => {
+        await fetch('/api/dashboard/reset', { method: 'POST' })
+      })
+    }
+
+    startAttackerConsole()
+  </script>
+</body>
+</html>

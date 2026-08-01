@@ -60,15 +60,38 @@ public sealed class HoneyGuardOptions
     public bool TrustForwardedForHeader { get; set; }
 
     /// <summary>
+    /// When true, the middleware trusts a client-supplied <see cref="DemoIpHeaderName"/>
+    /// header as the caller's IP address, taking priority over everything else. This is
+    /// what lets a browser-based "attacker" page (see wwwroot/attack.html) simulate a
+    /// fresh public IP on every run - something a browser cannot do with
+    /// <c>X-Forwarded-For</c>, since that header name is forbidden for <c>fetch</c>/XHR
+    /// to set directly.
+    ///
+    /// This must stay OFF outside of a deliberate demo deployment: anyone can set this
+    /// header to any value, so trusting it turns "ban this IP" into a request the caller
+    /// can simply opt out of by lying about who they are.
+    /// </summary>
+    public bool DemoMode { get; set; }
+
+    /// <summary>
+    /// The request header <see cref="DemoMode"/> reads a simulated attacker IP from.
+    /// </summary>
+    public const string DemoIpHeaderName = "X-HoneyGuard-Demo-Ip";
+
+    /// <summary>
     /// Path prefixes that are never subject to the ban check, even for an IP that is
     /// currently banned. Without this, banning your own machine's IP (which happens
     /// constantly during local testing, since the dashboard and the "attacker" curl
     /// commands run from the same box) would also lock you out of the dashboard itself.
+    /// `/attack.html` and `/theme.js` are exempt for the same reason: they are the demo
+    /// UI itself, not something an attacker's scan would ever hit.
     /// </summary>
     public string[] ExemptPathPrefixes { get; set; } =
     [
         "/",
         "/index.html",
+        "/attack.html",
+        "/theme.js",
         "/favicon.ico",
         "/api/dashboard",
     ];

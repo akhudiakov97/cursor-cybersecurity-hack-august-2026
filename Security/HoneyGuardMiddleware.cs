@@ -49,7 +49,7 @@ public sealed class HoneyGuardMiddleware(
             return;
         }
 
-        string ipAddress = ResolveClientIpAddress(context, settings.TrustForwardedForHeader);
+        string ipAddress = ResolveClientIpAddress(context, settings);
 
         // Branch 1: this caller is already banned from a previous trap hit. Block it
         // immediately with 403 Forbidden before any real endpoint logic runs.
@@ -136,29 +136,44 @@ public sealed class HoneyGuardMiddleware(
     }
 
     /// <summary>
-    /// Works out "who is making this request" as an IP address string.
+    /// Works out "who is making this request" as an IP address string, checked in three
+    /// steps from most to least "deliberately simulated":
     ///
-    /// In production, the real caller's IP is <c>context.Connection.RemoteIpAddress</c>.
-    /// But for a local demo, every request - the "attacker" curl commands and the
-    /// dashboard's own polling - comes from the same loopback address, which makes for a
-    /// boring demo and makes it impossible to ban one without banning the other. When
-    /// <paramref name="trustForwardedForHeader"/> is enabled (Development only - see
-    /// appsettings.Development.json), we honor an "X-Forwarded-For" header instead, so a
-    /// request like <c>curl -H "X-Forwarded-For: 203.0.113.45" ...</c> shows up as that
-    /// spoofed public IP everywhere in HoneyGuard.
+    /// 1. <see cref="HoneyGuardOptions.DemoMode"/>: trusts a client-supplied
+    ///    <see cref="HoneyGuardOptions.DemoIpHeaderName"/> header. This exists because a
+    ///    browser cannot set <c>X-Forwarded-For</c> itself (it is a forbidden header name
+    ///    for <c>fetch</c>/XHR), so the browser-based attacker page
+    ///    (wwwroot/attack.html) needs its own way to simulate a fresh public IP per run.
+    /// 2. <see cref="HoneyGuardOptions.TrustForwardedForHeader"/>: honors
+    ///    "X-Forwarded-For" as set by a reverse proxy (or, locally, by
+    ///    <c>curl -H "X-Forwarded-For: 203.0.113.45" ...</c> - see demo/attack.sh). Only
+    ///    the first, left-most entry is used: proxies append to this header rather than
+    ///    replace it, so behind a real proxy (e.g. Railway's) the header value is a
+    ///    comma-separated chain like "&lt;client&gt;, &lt;proxy&gt;", and only the first
+    ///    entry is the actual caller.
+    /// 3. Otherwise, <c>context.Connection.RemoteIpAddress</c> - the real socket address.
     ///
-    /// This must stay OFF in real production deployments unless a trusted reverse proxy
-    /// guarantees it always sets that header itself - otherwise an attacker could simply
-    /// claim to be a different IP than they really are to dodge the ban.
+    /// Both (1) and (2) must stay OFF in a real production deployment unless something
+    /// trustworthy in front of the app guarantees the header is set honestly - otherwise
+    /// an attacker could simply claim to be a different IP than they really are to dodge
+    /// the ban.
     /// </summary>
-    private static string ResolveClientIpAddress(HttpContext context, bool trustForwardedForHeader)
+    private static string ResolveClientIpAddress(HttpContext context, HoneyGuardOptions settings)
     {
-        if (trustForwardedForHeader && context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+        if (settings.DemoMode &&
+            context.Request.Headers.TryGetValue(HoneyGuardOptions.DemoIpHeaderName, out var demoIpHeader) &&
+            System.Net.IPAddress.TryParse(demoIpHeader.ToString().Trim(), out System.Net.IPAddress? demoIpAddress))
         {
-            string? spoofedIpAddress = forwardedFor.ToString();
-            if (!string.IsNullOrWhiteSpace(spoofedIpAddress))
+            return demoIpAddress.ToString();
+        }
+
+        if (settings.TrustForwardedForHeader &&
+            context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+        {
+            string firstHop = forwardedFor.ToString().Split(',')[0].Trim();
+            if (!string.IsNullOrWhiteSpace(firstHop))
             {
-                return spoofedIpAddress;
+                return firstHop;
             }
         }
 
