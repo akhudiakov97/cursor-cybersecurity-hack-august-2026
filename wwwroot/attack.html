@@ -68,14 +68,34 @@
       50% { box-shadow: 0 0 52px rgba(251, 191, 36, .55) }
     }
 
+    @keyframes manual-scan {
+      0% { transform: translateX(-120%); opacity: 0 }
+      18%, 82% { opacity: 1 }
+      100% { transform: translateX(420%); opacity: 0 }
+    }
+
+    @keyframes result-reveal {
+      0% { opacity: 0; transform: translateY(10px) scale(.98) }
+      100% { opacity: 1; transform: translateY(0) scale(1) }
+    }
+
+    @keyframes node-pop {
+      0% { transform: scale(.82); filter: brightness(.7) }
+      60% { transform: scale(1.08); filter: brightness(1.35) }
+      100% { transform: scale(1); filter: brightness(1) }
+    }
+
     .radar-sweep { animation: radar-sweep 7s linear infinite }
     .shield-breathe { animation: shield-breathe 2.8s ease-in-out infinite }
     .alert-shake { animation: alert-shake .42s ease-in-out }
     .stamp-in { animation: stamp-in .42s cubic-bezier(.2, .9, .3, 1.15) both }
     .trap-flash { animation: trap-flash .7s ease-in-out 2 }
+    .manual-scan { animation: manual-scan 1.15s cubic-bezier(.25,.8,.3,1) infinite }
+    .result-reveal { animation: result-reveal .45s cubic-bezier(.2,.9,.3,1) both }
+    .node-pop { animation: node-pop .42s cubic-bezier(.2,.9,.3,1.15) both }
 
     @media (prefers-reduced-motion: reduce) {
-      .radar-sweep, .shield-breathe, .alert-shake, .stamp-in, .trap-flash { animation: none }
+      .radar-sweep, .shield-breathe, .alert-shake, .stamp-in, .trap-flash, .manual-scan, .result-reveal, .node-pop { animation: none }
     }
   </style>
 </head>
@@ -258,27 +278,27 @@
         </div>
         <ol id="stepper-list" class="relative grid grid-cols-3 gap-2">
           <li data-step="1" class="text-center">
-            <button type="button" data-step-preview="1" aria-pressed="false" class="group w-full cursor-pointer px-1 py-1 focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <button type="button" data-step-preview="1" data-step-card aria-pressed="false" class="group w-full cursor-pointer border border-transparent px-2 py-2 transition duration-300 focus:outline-none focus:ring-2 focus:ring-amber-300">
               <span data-step-dot class="relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-[#0b0c08] font-mono text-[10px] font-bold text-stone-600 transition duration-300 group-hover:border-amber-300/50 group-hover:text-amber-200">01</span>
               <span data-step-title class="mt-2 block text-[10px] font-bold uppercase tracking-[.12em] text-stone-600 transition group-hover:text-amber-200 sm:text-xs">Safe request</span>
-              <span class="mt-1 hidden font-mono text-[9px] text-stone-700 group-hover:text-stone-500 sm:block">GET /products → 200</span>
-              <span class="mt-1 block font-mono text-[8px] uppercase tracking-[.12em] text-amber-300/40">Click to explain</span>
+              <span class="mt-1 block font-mono text-[9px] text-stone-600">GET /products → 200</span>
+              <span data-step-state class="mt-1 block font-mono text-[8px] font-bold uppercase tracking-[.14em] text-stone-700">Next</span>
             </button>
           </li>
           <li data-step="2" class="text-center">
-            <button type="button" data-step-preview="2" aria-pressed="false" class="group w-full cursor-pointer px-1 py-1 focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <button type="button" data-step-preview="2" data-step-card aria-pressed="false" class="group w-full cursor-pointer border border-transparent px-2 py-2 transition duration-300 focus:outline-none focus:ring-2 focus:ring-amber-300">
               <span data-step-dot class="relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-[#0b0c08] font-mono text-[10px] font-bold text-stone-600 transition duration-300 group-hover:border-amber-300/50 group-hover:text-amber-200">02</span>
               <span data-step-title class="mt-2 block text-[10px] font-bold uppercase tracking-[.12em] text-stone-600 transition group-hover:text-amber-200 sm:text-xs">Hidden trap</span>
-              <span class="mt-1 hidden font-mono text-[9px] text-stone-700 group-hover:text-stone-500 sm:block">GET /.env → decoy 404</span>
-              <span class="mt-1 block font-mono text-[8px] uppercase tracking-[.12em] text-amber-300/40">Click to explain</span>
+              <span class="mt-1 block font-mono text-[9px] text-stone-600">GET /.env → decoy 404</span>
+              <span data-step-state class="mt-1 block font-mono text-[8px] font-bold uppercase tracking-[.14em] text-stone-700">Next</span>
             </button>
           </li>
           <li data-step="3" class="text-center">
-            <button type="button" data-step-preview="3" aria-pressed="false" class="group w-full cursor-pointer px-1 py-1 focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <button type="button" data-step-preview="3" data-step-card aria-pressed="false" class="group w-full cursor-pointer border border-transparent px-2 py-2 transition duration-300 focus:outline-none focus:ring-2 focus:ring-amber-300">
               <span data-step-dot class="relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-[#0b0c08] font-mono text-[10px] font-bold text-stone-600 transition duration-300 group-hover:border-amber-300/50 group-hover:text-amber-200">03</span>
               <span data-step-title class="mt-2 block text-[10px] font-bold uppercase tracking-[.12em] text-stone-600 transition group-hover:text-amber-200 sm:text-xs">Blocked retry</span>
-              <span class="mt-1 hidden font-mono text-[9px] text-stone-700 group-hover:text-stone-500 sm:block">Same IP retries → 403</span>
-              <span class="mt-1 block font-mono text-[8px] uppercase tracking-[.12em] text-amber-300/40">Click to explain</span>
+              <span class="mt-1 block font-mono text-[9px] text-stone-600">Same IP retries → 403</span>
+              <span data-step-state class="mt-1 block font-mono text-[8px] font-bold uppercase tracking-[.14em] text-stone-700">Next</span>
             </button>
           </li>
         </ol>
@@ -360,7 +380,7 @@
           <p class="font-mono text-[8px] text-amber-300/55">Same engine as the automatic sequence, driven by you</p>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-[1fr_22rem]">
+        <div class="grid gap-4 lg:grid-cols-[1fr_26rem]">
           <section class="corner-cut border-2 border-amber-300/25 bg-black/30 p-4 shadow-[0_0_35px_rgba(245,184,66,.08)] sm:p-5">
             <p class="mb-4 font-mono text-[9px] leading-5 text-stone-600">Build one request below. It will be sent from the attacker IP selected above.</p>
             <div class="grid gap-3 sm:grid-cols-[8rem_1fr_auto]">
@@ -410,14 +430,59 @@
             <button id="reset-bans-button" type="button" class="mt-3 border border-stone-700 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.12em] text-stone-500 hover:border-stone-500 hover:text-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-400">Clear ban &amp; try again</button>
           </section>
 
-          <section class="corner-cut border-2 border-amber-300/25 bg-[#050603] p-4">
+          <section id="manual-result-panel" aria-live="polite" class="corner-cut relative overflow-hidden border-2 border-amber-300/25 bg-[#050603] p-4 transition duration-500">
+            <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(245,184,66,.08),transparent_65%)]" aria-hidden="true"></div>
             <div class="flex items-center justify-between">
               <p class="font-mono text-[9px] font-bold uppercase tracking-[.2em] text-stone-600">What happened</p>
               <span id="request-status" class="font-mono text-[9px] font-bold text-stone-600">READY</span>
             </div>
-            <p id="request-summary" class="mt-4 truncate font-mono text-[10px] text-stone-500">Waiting for manual request…</p>
-            <p id="request-meaning" class="mt-2 font-mono text-[9px] leading-5 text-stone-600">Choose a quick action or build a request, then the outcome will be explained here.</p>
-            <pre id="request-body" class="mt-3 max-h-20 overflow-auto whitespace-pre-wrap break-all font-mono text-[9px] leading-5 text-stone-700"></pre>
+
+            <div id="manual-stage" class="relative mt-4 border-y border-amber-200/10 py-4">
+              <span id="manual-scan-line" class="manual-scan pointer-events-none absolute inset-y-0 left-[8%] hidden w-1/5 bg-gradient-to-r from-transparent via-amber-300/10 to-transparent" aria-hidden="true"></span>
+              <div class="mb-3 flex items-center justify-between gap-3 font-mono text-[8px]">
+                <span class="font-bold uppercase tracking-[.14em] text-stone-700">Live route</span>
+                <span id="manual-route-label" class="max-w-[15rem] truncate text-amber-300/65">Waiting for request</span>
+              </div>
+              <div class="relative flex items-start justify-between">
+                <div class="absolute left-[12%] right-[12%] top-5 h-px bg-stone-800" aria-hidden="true"></div>
+                <div id="manual-packet-layer" class="pointer-events-none absolute inset-x-0 top-0 z-20 h-10" aria-hidden="true"></div>
+
+                <div class="relative z-10 w-20 text-center">
+                  <span id="manual-attacker-node" class="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-red-400/25 bg-red-950/60 text-red-400 transition duration-300">
+                    <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                      <circle cx="12" cy="8" r="3.5" />
+                      <path stroke-linecap="round" d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+                    </svg>
+                  </span>
+                  <span class="mt-1.5 block font-mono text-[7px] font-bold uppercase tracking-[.12em] text-red-300/60">Attacker</span>
+                </div>
+
+                <div class="relative z-10 w-20 text-center">
+                  <span id="manual-guard-node" class="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-amber-300 text-black transition duration-300">
+                    <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.8 4.4 6v5.6c0 4.7 3.1 8 7.6 9.6 4.5-1.6 7.6-4.9 7.6-9.6V6L12 2.8Z" />
+                    </svg>
+                  </span>
+                  <span id="manual-guard-label" class="mt-1.5 block font-mono text-[7px] font-bold uppercase tracking-[.12em] text-amber-300/60">Ready</span>
+                </div>
+
+                <div class="relative z-10 w-20 text-center">
+                  <span id="manual-target-node" class="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-stone-950 text-stone-600 transition duration-300">
+                    <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                      <ellipse cx="12" cy="6" rx="7" ry="3" />
+                      <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
+                    </svg>
+                  </span>
+                  <span id="manual-target-label" class="mt-1.5 block font-mono text-[7px] font-bold uppercase tracking-[.12em] text-stone-600">Destination</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="manual-result-copy" class="relative mt-4">
+              <p id="request-summary" class="truncate font-mono text-[10px] text-stone-500">Waiting for manual request…</p>
+              <p id="request-meaning" class="mt-2 font-mono text-[9px] leading-5 text-stone-600">Choose a quick action or build a request, then watch HoneyGuard inspect it in real time.</p>
+              <pre id="request-body" class="mt-3 max-h-20 overflow-auto whitespace-pre-wrap break-all font-mono text-[9px] leading-5 text-stone-700"></pre>
+            </div>
           </section>
         </div>
       </section>
@@ -428,8 +493,10 @@
 
   <script type="module">
     const DEMO_IP_HEADER_NAME = 'X-HoneyGuard-Demo-Ip'
-    const REQUEST_DELAY_MS = 650
-    const SCENE_HOLD_MS = 850
+    const REQUEST_DELAY_MS = 1000
+    const SCENE_HOLD_MS = 1700
+    const STEP_INTRO_MS = 700
+    const MANUAL_PACKET_DELAY_MS = 700
 
     const theaterElement = document.getElementById('theater')
     const simulationFieldElement = document.getElementById('simulation-field')
@@ -465,6 +532,16 @@
     const sendRequestButtonElement = document.getElementById('send-request-button')
     const quickRequestListElement = document.getElementById('quick-request-list')
     const resetBansButtonElement = document.getElementById('reset-bans-button')
+    const manualResultPanelElement = document.getElementById('manual-result-panel')
+    const manualPacketLayerElement = document.getElementById('manual-packet-layer')
+    const manualScanLineElement = document.getElementById('manual-scan-line')
+    const manualRouteLabelElement = document.getElementById('manual-route-label')
+    const manualAttackerNodeElement = document.getElementById('manual-attacker-node')
+    const manualGuardNodeElement = document.getElementById('manual-guard-node')
+    const manualGuardLabelElement = document.getElementById('manual-guard-label')
+    const manualTargetNodeElement = document.getElementById('manual-target-node')
+    const manualTargetLabelElement = document.getElementById('manual-target-label')
+    const manualResultCopyElement = document.getElementById('manual-result-copy')
     const requestStatusElement = document.getElementById('request-status')
     const requestSummaryElement = document.getElementById('request-summary')
     const requestMeaningElement = document.getElementById('request-meaning')
@@ -547,30 +624,51 @@
       const dotElement = stepElement.querySelector('[data-step-dot]')
       const titleElement = stepElement.querySelector('[data-step-title]')
       const buttonElement = stepElement.querySelector('[data-step-preview]')
+      const stateElement = stepElement.querySelector('[data-step-state]')
 
       const styles = {
         idle: {
+          card: 'group w-full cursor-pointer border border-transparent px-2 py-2 transition duration-300 focus:outline-none focus:ring-2 focus:ring-amber-300',
           dot: 'relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-[#0b0c08] font-mono text-[10px] font-bold text-stone-600 transition duration-300',
           title: 'mt-2 block text-[10px] font-bold uppercase tracking-[.12em] text-stone-600 transition group-hover:text-amber-200 sm:text-xs',
+          state: 'mt-1 block font-mono text-[8px] font-bold uppercase tracking-[.14em] text-stone-700',
+          label: 'Next',
         },
         active: {
+          card: 'group w-full cursor-pointer border border-amber-300/55 bg-amber-300/8 px-2 py-2 shadow-[0_0_28px_rgba(245,184,66,.12)] transition duration-300 focus:outline-none focus:ring-2 focus:ring-amber-300',
           dot: 'relative mx-auto flex h-10 w-10 animate-pulse items-center justify-center rounded-full border border-amber-300 bg-amber-300/10 font-mono text-[10px] font-bold text-amber-200 shadow-[0_0_22px_rgba(245,184,66,.28)] transition duration-300',
           title: 'mt-2 block text-[10px] font-bold uppercase tracking-[.12em] text-amber-200 transition sm:text-xs',
+          state: 'mt-1 block font-mono text-[8px] font-black uppercase tracking-[.14em] text-amber-300',
+          label: 'Now happening',
         },
         complete: {
+          card: 'group w-full cursor-pointer border border-emerald-400/20 bg-emerald-400/5 px-2 py-2 transition duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-300',
           dot: 'relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400 bg-emerald-400 font-mono text-[10px] font-black text-black shadow-[0_0_18px_rgba(52,211,153,.2)] transition duration-300',
           title: 'mt-2 block text-[10px] font-bold uppercase tracking-[.12em] text-emerald-300 transition sm:text-xs',
+          state: 'mt-1 block font-mono text-[8px] font-black uppercase tracking-[.14em] text-emerald-400',
+          label: 'Done ✓',
         },
         blocked: {
+          card: 'group w-full cursor-pointer border border-red-400/30 bg-red-400/5 px-2 py-2 transition duration-300 focus:outline-none focus:ring-2 focus:ring-red-300',
           dot: 'relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-red-400 bg-red-400 font-mono text-[10px] font-black text-black shadow-[0_0_22px_rgba(248,113,113,.3)] transition duration-300',
           title: 'mt-2 block text-[10px] font-bold uppercase tracking-[.12em] text-red-400 transition sm:text-xs',
+          state: 'mt-1 block font-mono text-[8px] font-black uppercase tracking-[.14em] text-red-400',
+          label: 'Blocked ✓',
         },
       }
 
       const style = styles[state] ?? styles.idle
+      buttonElement.className = style.card
       dotElement.className = style.dot
       titleElement.className = style.title
+      stateElement.className = style.state
+      stateElement.textContent = style.label
       buttonElement.setAttribute('aria-pressed', String(state === 'active'))
+      if (state === 'active') {
+        buttonElement.setAttribute('aria-current', 'step')
+      } else {
+        buttonElement.removeAttribute('aria-current')
+      }
     }
 
     const resetVisualState = () => {
@@ -645,6 +743,7 @@
         'neutral',
         'This is normal traffic. HoneyGuard should allow it to reach the protected API.',
       )
+      await sleep(STEP_INTRO_MS)
       await animatePacket({ startX: 17, startY: 39, endX: 50, endY: 39, color: '#f5b842' })
       guardCoreElement.className = 'hexagon absolute inset-3 flex items-center justify-center bg-white text-black shadow-[0_0_40px_rgba(255,255,255,.45)] transition duration-300 sm:inset-4'
       guardStateLabelElement.textContent = 'Request trusted'
@@ -676,6 +775,7 @@
         'neutral',
         'This route is a hidden trap. It looks missing, but touching it reveals malicious intent.',
       )
+      await sleep(STEP_INTRO_MS)
       await animatePacket({ startX: 17, startY: 39, endX: 50, endY: 82, color: '#fbbf24' })
       trapNodeElement.className = 'trap-flash absolute bottom-5 left-1/2 z-10 -translate-x-1/2 border border-amber-300 bg-amber-300/15 px-4 py-2 text-center opacity-100 transition duration-300'
       guardCoreElement.className = 'hexagon absolute inset-3 flex items-center justify-center bg-amber-300 text-black shadow-[0_0_52px_rgba(245,184,66,.55)] transition duration-300 sm:inset-4'
@@ -702,6 +802,7 @@
         'neutral',
         'HoneyGuard already knows this identity, so the request should stop before app code runs.',
       )
+      await sleep(STEP_INTRO_MS)
       await animatePacket({ startX: 17, startY: 39, endX: 49, endY: 39, color: '#f87171' })
       theaterElement.classList.add('alert-shake')
       setTimeout(() => theaterElement.classList.remove('alert-shake'), 500)
@@ -775,7 +876,50 @@
       return { label: `${status} RESPONSE`, className: 'font-mono text-[9px] font-bold text-stone-300' }
     }
 
+    const resetManualStage = () => {
+      manualPacketLayerElement.innerHTML = ''
+      manualScanLineElement.classList.add('hidden')
+      manualResultPanelElement.className = 'corner-cut relative overflow-hidden border-2 border-amber-300/25 bg-[#050603] p-4 transition duration-500'
+      manualAttackerNodeElement.className = 'mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-red-400/25 bg-red-950/60 text-red-400 transition duration-300'
+      manualGuardNodeElement.className = 'mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-amber-300 text-black transition duration-300'
+      manualTargetNodeElement.className = 'mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-700 bg-stone-950 text-stone-600 transition duration-300'
+      manualGuardLabelElement.textContent = 'Ready'
+      manualTargetLabelElement.textContent = 'Destination'
+      manualTargetLabelElement.className = 'mt-1.5 block font-mono text-[7px] font-bold uppercase tracking-[.12em] text-stone-600'
+      manualResultCopyElement.classList.remove('result-reveal')
+    }
+
+    const animateManualPacket = async ({ startPercent, endPercent, color }) => {
+      const packetElement = document.createElement('span')
+      packetElement.className = 'absolute top-5 h-2.5 w-2.5 -translate-y-1/2 rounded-full'
+      packetElement.style.left = `${startPercent}%`
+      packetElement.style.backgroundColor = color
+      packetElement.style.boxShadow = `0 0 18px ${color}, 0 0 5px ${color}`
+      manualPacketLayerElement.appendChild(packetElement)
+
+      const animation = packetElement.animate(
+        [
+          { left: `${startPercent}%`, opacity: 0, transform: 'translate(-50%, -50%) scale(.4)' },
+          { opacity: 1, offset: .15, transform: 'translate(-50%, -50%) scale(1)' },
+          { left: `${endPercent}%`, opacity: 1, transform: 'translate(-50%, -50%) scale(1)' },
+        ],
+        { duration: MANUAL_PACKET_DELAY_MS, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'forwards' },
+      )
+
+      await sleep(MANUAL_PACKET_DELAY_MS + 40)
+      animation.cancel()
+      packetElement.remove()
+    }
+
+    const revealManualResult = () => {
+      manualResultCopyElement.classList.remove('result-reveal')
+      void manualResultCopyElement.offsetWidth
+      manualResultCopyElement.classList.add('result-reveal')
+    }
+
     const sendManualRequest = async () => {
+      if (sendRequestButtonElement.disabled) return
+
       const method = requestMethodElement.value
       const path = requestPathElement.value.trim()
       const validPath = path.startsWith('/') && !path.startsWith('//')
@@ -791,35 +935,76 @@
         return
       }
 
+      resetManualStage()
       sendRequestButtonElement.disabled = true
       requestStatusElement.textContent = 'SENDING'
       requestStatusElement.className = 'animate-pulse font-mono text-[9px] font-bold text-amber-300'
       requestSummaryElement.textContent = `${method} ${path} · ${attackerIpInputElement.value.trim()}`
-      requestMeaningElement.textContent = 'Sending this request now. The result will be explained here.'
+      requestMeaningElement.textContent = 'The request is leaving the attacker and moving toward HoneyGuard.'
       requestBodyElement.textContent = ''
+      manualRouteLabelElement.textContent = `${method} ${path}`
+      manualScanLineElement.classList.remove('hidden')
+      manualGuardLabelElement.textContent = 'Inspecting'
+      manualAttackerNodeElement.className = 'node-pop mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-red-400 bg-red-400 text-black shadow-[0_0_22px_rgba(248,113,113,.35)] transition duration-300'
 
       try {
-        const response = await probe(path, method)
+        const responsePromise = probe(path, method)
+        await sleep(250)
+        await animateManualPacket({ startPercent: 12, endPercent: 50, color: '#f5b842' })
+        manualAttackerNodeElement.className = 'mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-red-400/25 bg-red-950/60 text-red-400 transition duration-300'
+        manualGuardNodeElement.className = 'node-pop mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-amber-200 text-black shadow-[0_0_28px_rgba(245,184,66,.45)] transition duration-300'
+        requestMeaningElement.textContent = 'HoneyGuard is checking the route and this IP against its trap and ban rules.'
+
+        const response = await responsePromise
         const responseBody = await response.text()
+        await sleep(450)
         const tone = getManualStatusTone(response.status)
         requestStatusElement.textContent = tone.label
         requestStatusElement.className = tone.className
+
         if (response.status >= 200 && response.status < 300) {
+          manualGuardLabelElement.textContent = 'Allowed'
+          manualGuardNodeElement.className = 'mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-400 text-black shadow-[0_0_25px_rgba(52,211,153,.35)] transition duration-300'
+          await animateManualPacket({ startPercent: 50, endPercent: 88, color: '#4ade80' })
+          manualTargetNodeElement.className = 'node-pop mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-emerald-300 bg-emerald-400 text-black shadow-[0_0_24px_rgba(52,211,153,.35)] transition duration-300'
+          manualTargetLabelElement.textContent = 'API reached'
+          manualTargetLabelElement.className = 'mt-1.5 block font-mono text-[7px] font-bold uppercase tracking-[.12em] text-emerald-300'
+          manualResultPanelElement.className = 'corner-cut relative overflow-hidden border-2 border-emerald-400/45 bg-emerald-400/5 p-4 shadow-[0_0_32px_rgba(52,211,153,.08)] transition duration-500'
           requestMeaningElement.textContent = 'Safe traffic was allowed through to the protected API.'
         } else if (response.status === 404) {
+          manualGuardLabelElement.textContent = 'Trap sprung'
+          manualGuardNodeElement.className = 'trap-flash mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-amber-300 text-black shadow-[0_0_28px_rgba(245,184,66,.45)] transition duration-300'
+          await animateManualPacket({ startPercent: 50, endPercent: 88, color: '#fbbf24' })
+          manualTargetNodeElement.className = 'node-pop mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-amber-300 bg-amber-300/15 text-amber-300 shadow-[0_0_24px_rgba(245,184,66,.3)] transition duration-300'
+          manualTargetLabelElement.textContent = 'Decoy 404'
+          manualTargetLabelElement.className = 'mt-1.5 block font-mono text-[7px] font-bold uppercase tracking-[.12em] text-amber-300'
+          manualResultPanelElement.className = 'corner-cut relative overflow-hidden border-2 border-amber-300/60 bg-amber-300/5 p-4 shadow-[0_0_34px_rgba(245,184,66,.1)] transition duration-500'
           requestMeaningElement.textContent = 'The hidden trap returned a decoy 404 and silently banned this attacker IP.'
         } else if (response.status === 403) {
+          manualGuardLabelElement.textContent = 'Blocked'
+          manualGuardNodeElement.className = 'node-pop mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-red-400 text-black shadow-[0_0_30px_rgba(248,113,113,.45)] transition duration-300'
+          manualTargetNodeElement.className = 'mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-stone-800 bg-stone-950 text-stone-800 opacity-40 transition duration-300'
+          manualTargetLabelElement.textContent = 'API untouched'
+          manualTargetLabelElement.className = 'mt-1.5 block font-mono text-[7px] font-bold uppercase tracking-[.12em] text-red-400/70'
+          manualResultPanelElement.className = 'alert-shake corner-cut relative overflow-hidden border-2 border-red-400/55 bg-red-400/5 p-4 shadow-[0_0_34px_rgba(248,113,113,.1)] transition duration-500'
           requestMeaningElement.textContent = 'This IP was already flagged, so HoneyGuard stopped it before the API.'
         } else {
+          manualGuardLabelElement.textContent = 'Responded'
           requestMeaningElement.textContent = 'The server responded, but this status is outside the guided demo flow.'
         }
         requestBodyElement.textContent = responseBody || '(empty response body)'
+        revealManualResult()
       } catch (error) {
         requestStatusElement.textContent = 'FAILED'
         requestStatusElement.className = 'font-mono text-[9px] font-bold text-red-400'
+        manualGuardLabelElement.textContent = 'Failed'
+        manualGuardNodeElement.className = 'mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-red-400 text-black transition duration-300'
+        manualResultPanelElement.className = 'alert-shake corner-cut relative overflow-hidden border-2 border-red-400/55 bg-red-400/5 p-4 transition duration-500'
         requestMeaningElement.textContent = 'The request could not reach the server. Check the path and connection.'
         requestBodyElement.textContent = error instanceof Error ? error.message : 'Request failed'
+        revealManualResult()
       } finally {
+        manualScanLineElement.classList.add('hidden')
         sendRequestButtonElement.disabled = false
       }
     }
