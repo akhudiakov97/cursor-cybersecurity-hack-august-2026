@@ -1,26 +1,24 @@
 # HoneyGuard
 
-HoneyGuard adds hidden trap routes to a .NET API. If someone probes one, their IP is
-blocked immediately and the incident appears on a live dashboard.
+HoneyGuard hides trap routes inside a .NET API. Probe one, and it blocks your IP
+instantly — no waiting, no database round-trip — and the attack shows up live on a
+dashboard.
 
-The block happens in memory, so it does not depend on Supabase. Supabase only stores
-incidents and sends them to the dashboard in real time.
-
-## Live demo
+## Try it — takes 30 seconds
 
 - Defender dashboard: https://cursor-cybersecurity-hack-august-2026-production.up.railway.app/
-- Attacker console: https://cursor-cybersecurity-hack-august-2026-production.up.railway.app/attack.html
+- Attack simulator: https://cursor-cybersecurity-hack-august-2026-production.up.railway.app/attack.html
 
-Open both side by side, click **[ run attack sequence ]** on the attacker page, and
-watch the incident land on the dashboard in real time. Use **[ clear bans ]** to replay.
+Open both side by side. On the attack simulator, click **Run attack demo** and watch the
+incident land on the dashboard as it happens. Click **Run demo again** to replay.
 
-## Demo flow
+## What happens
 
-1. A normal API request returns `200 OK`.
-2. The attacker probes `/api/v1/admin/config` and receives a disguised `404 Not Found`.
-3. HoneyGuard bans the IP.
-4. The attacker's next valid request returns `403 Forbidden`.
-5. The dashboard updates instantly without a refresh.
+1. A normal request goes through fine (`200`).
+2. The "attacker" probes a hidden trap route and gets a disguised `404 Not Found` — but
+   is banned the instant they touch it.
+3. Their next request is blocked (`403 Forbidden`).
+4. The dashboard updates instantly, no refresh needed.
 
 ## Run it
 
@@ -46,35 +44,35 @@ simulation from a terminal:
 ```
 
 or open [http://localhost:5245/attack.html](http://localhost:5245/attack.html) in another
-tab and click **[ run attack sequence ]** — no terminal needed. See
+tab and click **Run attack demo** — no terminal needed. See
 [Attack it from the browser](#attack-it-from-the-browser) below for how that page works.
 
-Use **[ clear bans ]** on either page to run the demo again.
+Click **Run demo again** on the dashboard to clear bans and replay.
 
 ## Attack it from the browser
 
-`wwwroot/attack.html` is a self-service "attacker console" so the whole demo — normal
+`wwwroot/attack.html` is a self-service "attack simulator" so the whole demo — normal
 request, trap probe, ban, block — can be run end-to-end from two browser tabs, with no
-terminal required.
+terminal required. Clicking **Run attack demo** rolls a fresh simulated attacker identity
+and walks through all three steps automatically, so replaying it is always one click.
 
 A browser cannot set the `X-Forwarded-For` header itself (`fetch` treats it as forbidden),
 which is what `demo/attack.sh` relies on to simulate a public attacker IP. Instead, the
-attacker page rolls a fresh `203.0.113.x` address on every page load and sends it in a
-custom `X-HoneyGuard-Demo-Ip` header. The server only trusts that header when
-`HoneyGuard:DemoMode` is turned on (see `Configuration/HoneyGuardOptions.cs`) — it must
-stay off for any deployment where IPs need to mean something real, since the header value
-is just a claim the caller makes about itself.
+attacker page sends a simulated IP in a custom `X-HoneyGuard-Demo-Ip` header. The server
+only trusts that header when `HoneyGuard:DemoMode` is turned on (see
+`Configuration/HoneyGuardOptions.cs`) — it must stay off for any deployment where IPs need
+to mean something real, since the header value is just a claim the caller makes about
+itself.
 
-Open the dashboard and the attacker console side by side to watch incidents land in real
+Open the dashboard and the attack simulator side by side to watch incidents land in real
 time as you probe.
 
 ## Light and dark mode
 
 Both `wwwroot/index.html` and `wwwroot/attack.html` support light and dark themes via a
-`[ dark ]` / `[ light ]` toggle in the title bar. The choice is stored in
-`localStorage` and applied before the page paints (`wwwroot/theme.js`), so there is no
-flash of the wrong theme on load. With no stored preference, the page follows the
-browser's `prefers-color-scheme`.
+toggle in the top bar. The choice is stored in `localStorage` and applied before the page
+paints (`wwwroot/theme.js`), so there is no flash of the wrong theme on load. With no
+stored preference, the page follows the browser's `prefers-color-scheme`.
 
 ## Deploy to Railway
 
@@ -84,7 +82,7 @@ The repo includes a `Dockerfile`, so Railway can build and deploy it directly:
    and builds it automatically — no other configuration is required.
 2. Set these service variables:
    - `HoneyGuard__SupabaseServiceRoleKey` — the Supabase `service_role` key (secret, never commit this)
-   - `HoneyGuard__DemoMode` = `true` — lets `/attack.html` simulate attacker IPs, and lets **[ clear bans ]** work outside Development
+   - `HoneyGuard__DemoMode` = `true` — lets `/attack.html` simulate attacker IPs, and lets **Run demo again** work outside Development
    - `HoneyGuard__TrustForwardedForHeader` = `true` — trusts Railway's edge proxy to set `X-Forwarded-For` honestly
    - `HoneyGuard__BanDuration` = `00:02:00` (optional) — shorter bans make repeat demos faster
    - `ASPNETCORE_ENVIRONMENT` = `Production`
@@ -105,8 +103,8 @@ Two things to know about running this in a hosted demo:
 - `Security/HoneyGuardMiddleware.cs` — detects traps and blocks banned IPs
 - `Security/BanRegistry.cs` — keeps bans in memory
 - `Reporting/IncidentDispatcher.cs` — sends incidents to Supabase in the background
-- `wwwroot/index.html` — displays incidents through Supabase Realtime
-- `wwwroot/attack.html` — self-service attacker console for the browser
+- `wwwroot/index.html` — defender dashboard, displays incidents through Supabase Realtime
+- `wwwroot/attack.html` — self-service attack simulator for the browser
 - `wwwroot/theme.js` — shared light/dark theme toggle for both pages
 - `demo/attack.sh` — runs the three-request demo from a terminal
 - `Dockerfile` — builds the app for deployment (e.g. Railway)
