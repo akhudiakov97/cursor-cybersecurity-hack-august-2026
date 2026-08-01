@@ -1,41 +1,39 @@
-var builder = WebApplication.CreateBuilder(args);
+using HoneyGuard.Endpoints;
+using HoneyGuard.Security;
 
-// Add services to the container.
+// WebApplicationBuilder is where every service the app needs gets registered before the
+// app actually starts handling requests. Think of it as the "configuration phase".
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-var app = builder.Build();
+// Registers HoneyGuard's own services (the ban registry, the incident queue, and its
+// background dispatcher). See HoneyGuardServiceCollectionExtensions.AddHoneyGuard for
+// exactly what this adds and why each piece uses the DI lifetime that it does.
+builder.Services.AddHoneyGuard(builder.Configuration);
 
-// Configure the HTTP request pipeline.
+// Building the app switches from "configuration phase" to "the app now exists" - after
+// this line, you assemble the request pipeline instead of registering more services.
+WebApplication app = builder.Build();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// Pipeline order matters: middleware runs in exactly the order it is added here, wrapped
+// around whatever comes after it. HoneyGuard goes first so that a banned IP or a
+// honeypot trap gets handled before the request ever reaches static files or a real
+// endpoint further down this list.
+app.UseHoneyGuard();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+// Serves wwwroot/index.html (the dashboard) as the default document, plus any other
+// static assets placed in wwwroot/.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.MapProductsEndpoints();
+app.MapDashboardEndpoints();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

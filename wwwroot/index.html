@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-black">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>honeyguard :: threat console</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="icon" href="data:," />
+  <style>
+    @keyframes blink { 50% { opacity: 0; } }
+    .cursor-blink { animation: blink 1s step-start infinite; }
+
+    @keyframes scanline { from { background-position: 0 0; } to { background-position: 0 4px; } }
+    .crt-scanlines {
+      background-image: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.025) 0px,
+        rgba(255, 255, 255, 0.025) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+    }
+
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .row-in { animation: rowIn 150ms ease-out; }
+
+    @keyframes hitFlash {
+      0% { background-color: rgba(220, 38, 38, 0.35); }
+      100% { background-color: transparent; }
+    }
+    .row-hit-flash { animation: hitFlash 1.6s ease-out; }
+  </style>
+</head>
+<body class="crt-scanlines min-h-screen bg-black font-mono text-[13px] leading-relaxed text-green-400 selection:bg-green-400 selection:text-black">
+  <!-- Full-screen red flash, toggled on for a moment whenever a new incident arrives. -->
+  <div id="flash-overlay" class="pointer-events-none fixed inset-0 z-50 bg-red-600 opacity-0 transition-opacity duration-150"></div>
+
+  <div class="mx-auto max-w-4xl px-5 py-6">
+    <!-- Terminal chrome: fake window titlebar, like a real ops console screenshare. -->
+    <div class="border border-green-900 bg-neutral-950">
+      <div class="flex items-center justify-between border-b border-green-900 bg-neutral-900/60 px-3 py-1.5">
+        <div class="flex items-center gap-1.5">
+          <span class="h-2.5 w-2.5 rounded-full bg-red-500/70"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-yellow-500/70"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-green-500/70"></span>
+          <span class="ml-3 text-neutral-500">root@edge-01:~# honeyguard --watch incidents</span>
+        </div>
+        <div class="flex items-center gap-2 text-neutral-500">
+          <span id="connection-dot" class="h-1.5 w-1.5 rounded-full bg-neutral-600"></span>
+          <span id="connection-label" class="uppercase tracking-widest">init</span>
+        </div>
+      </div>
+
+      <div class="p-4">
+        <!-- Banner -->
+        <pre class="mb-4 hidden text-[10px] leading-none text-green-600 sm:block">██╗  ██╗ ██████╗ ███╗   ██╗███████╗██╗   ██╗ ██████╗ ██╗   ██╗ █████╗ ██████╗ ██████╗
+██║  ██║██╔═══██╗████╗  ██║██╔════╝╚██╗ ██╔╝██╔════╝ ██║   ██║██╔══██╗██╔══██╗██╔══██╗
+███████║██║   ██║██╔██╗ ██║█████╗   ╚████╔╝ ██║  ███╗██║   ██║███████║██████╔╝██║  ██║
+██╔══██║██║   ██║██║╚██╗██║██╔══╝    ╚██╔╝  ██║   ██║██║   ██║██╔══██║██╔══██╗██║  ██║
+██║  ██║╚██████╔╝██║ ╚████║███████╗   ██║   ╚██████╔╝╚██████╔╝██║  ██║██║  ██║██████╔╝
+╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝   ╚═╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝</pre>
+
+        <div class="mb-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-green-900/60 pb-3">
+          <p class="text-neutral-400">
+            active-defense middleware <span class="text-neutral-700">//</span>
+            honeypot traps armed <span class="text-neutral-700">//</span>
+            watching for intrusions<span class="cursor-blink text-green-400">_</span>
+          </p>
+          <button
+            id="reset-button"
+            type="button"
+            tabindex="0"
+            aria-label="Clear all active bans and reset the demo"
+            class="border border-green-900 px-2 py-1 text-[11px] uppercase tracking-widest text-green-500 hover:border-green-500 hover:bg-green-950/40 focus:outline-none focus:ring-1 focus:ring-green-500"
+          >[ clear bans ]</button>
+        </div>
+
+        <!-- Status line, like `top` or a fail2ban summary. -->
+        <div class="mb-4 grid grid-cols-2 gap-x-6 gap-y-2 border border-green-900/60 bg-black/40 px-4 py-3 sm:grid-cols-4">
+          <div>
+            <span class="text-neutral-600">incidents..... </span><span id="metric-total" class="font-bold text-red-500">0</span>
+          </div>
+          <div>
+            <span class="text-neutral-600">attackers..... </span><span id="metric-unique-ips" class="font-bold text-yellow-500">0</span>
+          </div>
+          <div class="truncate">
+            <span class="text-neutral-600">top trap...... </span><span id="metric-top-trap" class="font-bold text-cyan-400">none</span>
+          </div>
+          <div>
+            <span class="text-neutral-600">last hit...... </span><span id="metric-last-seen" class="font-bold text-neutral-300">--:--:--</span>
+          </div>
+        </div>
+
+        <!-- Raw log feed. -->
+        <div class="border border-green-900/60">
+          <div class="border-b border-green-900/60 bg-neutral-900/40 px-3 py-1 text-neutral-500">
+            tail -f /var/log/honeyguard/incidents.log
+          </div>
+          <ul id="incident-list" class="max-h-[28rem] overflow-y-auto">
+            <li id="empty-state" class="px-3 py-6 text-center text-neutral-600">
+              # no incidents yet - probe a trap route to see it land here in real time
+            </li>
+          </ul>
+        </div>
+
+        <p class="mt-3 text-[11px] text-neutral-700">
+          events stream over Supabase Realtime the instant Postgres commits them - this page is never polled or refreshed.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+    const incidentListElement = document.getElementById('incident-list')
+    const emptyStateElement = document.getElementById('empty-state')
+    const flashOverlayElement = document.getElementById('flash-overlay')
+    const connectionDotElement = document.getElementById('connection-dot')
+    const connectionLabelElement = document.getElementById('connection-label')
+    const resetButtonElement = document.getElementById('reset-button')
+
+    const metricTotalElement = document.getElementById('metric-total')
+    const metricUniqueIpsElement = document.getElementById('metric-unique-ips')
+    const metricTopTrapElement = document.getElementById('metric-top-trap')
+    const metricLastSeenElement = document.getElementById('metric-last-seen')
+
+    const seenIncidentIds = new Set()
+    const attackerIpAddresses = new Set()
+    const trapHitCounts = new Map()
+    let totalAttackCount = 0
+
+    const formatTimestamp = (isoString) => new Date(isoString).toLocaleTimeString('en-GB')
+
+    const playAlertTone = () => {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      oscillator.type = 'square'
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime)
+      gain.gain.setValueAtTime(0.15, audioContext.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.4)
+      oscillator.connect(gain).connect(audioContext.destination)
+      oscillator.start()
+      oscillator.stop(audioContext.currentTime + 0.4)
+    }
+
+    const flashScreenRed = () => {
+      flashOverlayElement.classList.remove('opacity-0')
+      flashOverlayElement.classList.add('opacity-40')
+      setTimeout(() => {
+        flashOverlayElement.classList.remove('opacity-40')
+        flashOverlayElement.classList.add('opacity-0')
+      }, 200)
+    }
+
+    const setConnectionStatus = (status) => {
+      const statusStyles = {
+        init: { dot: 'bg-neutral-600', label: 'init' },
+        connected: { dot: 'bg-green-500', label: 'live' },
+        disconnected: { dot: 'bg-red-500', label: 'down' },
+      }
+      const style = statusStyles[status] ?? statusStyles.init
+      connectionDotElement.className = `h-1.5 w-1.5 rounded-full ${style.dot}`
+      connectionLabelElement.textContent = style.label
+    }
+
+    const updateMetrics = () => {
+      metricTotalElement.textContent = String(totalAttackCount)
+      metricUniqueIpsElement.textContent = String(attackerIpAddresses.size)
+
+      let topTrap = 'none'
+      let topTrapCount = 0
+      for (const [trapName, count] of trapHitCounts) {
+        if (count > topTrapCount) {
+          topTrap = trapName
+          topTrapCount = count
+        }
+      }
+      metricTopTrapElement.textContent = topTrap
+      metricLastSeenElement.textContent = new Date().toLocaleTimeString('en-GB')
+    }
+
+    const renderIncidentRow = (incident, { animate }) => {
+      if (seenIncidentIds.has(incident.id)) return
+      seenIncidentIds.add(incident.id)
+
+      totalAttackCount += 1
+      attackerIpAddresses.add(incident.ip_address)
+      trapHitCounts.set(incident.trap_name, (trapHitCounts.get(incident.trap_name) ?? 0) + 1)
+
+      emptyStateElement.classList.add('hidden')
+
+      const rowElement = document.createElement('li')
+      rowElement.className = `border-b border-green-900/30 px-3 py-1.5 last:border-b-0 ${animate ? 'row-in row-hit-flash' : ''}`
+      rowElement.innerHTML = `
+        <span class="text-neutral-600">[${formatTimestamp(incident.created_at)}]</span>
+        <span class="font-bold text-red-500">BLOCK</span>
+        <span class="text-yellow-400">${incident.ip_address}</span>
+        <span class="text-neutral-500">${incident.method}</span>
+        <span class="text-neutral-300">${incident.path}</span>
+        <span class="text-neutral-600">trap=</span><span class="text-cyan-400">${incident.trap_name}</span>
+      `
+      incidentListElement.prepend(rowElement)
+
+      if (animate) {
+        flashScreenRed()
+        playAlertTone()
+      }
+
+      updateMetrics()
+    }
+
+    const startDashboard = async () => {
+      const configResponse = await fetch('/api/dashboard/config')
+      const { supabaseUrl, supabaseAnonKey } = await configResponse.json()
+      const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+      // Backfill whatever already happened before this page loaded, so a refresh never
+      // shows an empty feed.
+      const { data: recentIncidents } = await supabase
+        .from('incidents')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      for (const incident of (recentIncidents ?? []).reverse()) {
+        renderIncidentRow(incident, { animate: false })
+      }
+
+      // From here on, every new row inserted into `incidents` arrives over this
+      // WebSocket channel the instant Postgres commits it - no polling, no refresh.
+      supabase
+        .channel('honeyguard-incidents')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'incidents' },
+          (payload) => renderIncidentRow(payload.new, { animate: true }),
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') setConnectionStatus('connected')
+          else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') setConnectionStatus('disconnected')
+        })
+
+      resetButtonElement.addEventListener('click', async () => {
+        await fetch('/api/dashboard/reset', { method: 'POST' })
+      })
+    }
+
+    startDashboard()
+  </script>
+</body>
+</html>

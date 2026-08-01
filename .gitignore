@@ -141,3 +141,12 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# .NET build output
+bin/
+obj/
+*.user
+
+# .NET user-secrets are stored outside the repo (~/.microsoft/usersecrets), never here,
+# but ignore this pattern defensively in case anyone ever copies a secrets.json in locally.
+**/secrets.json

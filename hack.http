@@ -1,6 +1,20 @@
-@hack_HostAddress = http://localhost:5245
+@HoneyGuard_HostAddress = http://localhost:5245
+@AttackerIp = 203.0.113.77
 
-GET {{hack_HostAddress}}/weatherforecast/
+### Step 1: a normal request - expect 200 OK
+GET {{HoneyGuard_HostAddress}}/api/v1/products
 Accept: application/json
+X-Forwarded-For: {{AttackerIp}}
 
-###
+### Step 2: probe a honeypot trap - expect a disguised 404 Not Found, and the IP is now banned
+GET {{HoneyGuard_HostAddress}}/api/v1/admin/config
+Accept: application/json
+X-Forwarded-For: {{AttackerIp}}
+
+### Step 3: try a real request again - expect 403 Forbidden, blocked instantly
+GET {{HoneyGuard_HostAddress}}/api/v1/products
+Accept: application/json
+X-Forwarded-For: {{AttackerIp}}
+
+### Reset the demo (Development only) - clears every in-memory ban
+POST {{HoneyGuard_HostAddress}}/api/dashboard/reset
