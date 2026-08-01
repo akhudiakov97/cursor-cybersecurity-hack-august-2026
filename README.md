@@ -6,6 +6,14 @@ blocked immediately and the incident appears on a live dashboard.
 The block happens in memory, so it does not depend on Supabase. Supabase only stores
 incidents and sends them to the dashboard in real time.
 
+## Live demo
+
+- Defender dashboard: https://cursor-cybersecurity-hack-august-2026-production.up.railway.app/
+- Attacker console: https://cursor-cybersecurity-hack-august-2026-production.up.railway.app/attack.html
+
+Open both side by side, click **[ run attack sequence ]** on the attacker page, and
+watch the incident land on the dashboard in real time. Use **[ clear bans ]** to replay.
+
 ## Demo flow
 
 1. A normal API request returns `200 OK`.
